@@ -62,7 +62,7 @@ main (int argc,char *argv[])
     }
 
   try {
-    while((optchar=getopt(argc,argv,"hvdi:c:t:"))!=-1)
+    while((optchar=getopt(argc,argv,"hvds:u:"))!=-1)
       {
 	switch(optchar)
 	  {      
@@ -70,16 +70,13 @@ main (int argc,char *argv[])
 	    show_usage(argv[0]);
 	    break;
          
-	  case 'i':  /*-i str_filename(loc_str.doc)*/
-	    builder.set_string_path(optarg);
-	    break;
-         
-	  case 'c': /*-c config directory , load config files directly*/
-	    builder.set_configuration_directory(optarg);
+	           
+	  case 'u': /*-u $utl_path */
+	    builder.set_utl_directory(optarg);
 	    break;
 
-	  case 't':/*-t data translation files directory*/
-	    builder.set_data_directory(optarg);
+	  case 's':/*-t $strings configuration and data translation files directory*/
+	    builder.set_string_directory(optarg);
 	    break;
 
 	  case 'v':/*display the version.*/
@@ -105,33 +102,15 @@ main (int argc,char *argv[])
     std::cerr << "exception caught: " << std::endl;
   }
   try {
-
     builder.parse_tel_targets_async();
-    //builder.parse_target();
-    std::string   gea{"GEA"};
-    std::string   fr0{"FR0"};
-    std::string   gr0{"GR0"};
-    //builder.load_tsl_async(gea);
-    // builder.load_all_tsl(fr0);
-    // builder.load_all_tsl(gr0);
-   // builder.load_def();
- 
-    builder.generate_locate();
-  //    builder.generate_stu(gea);
-    // builder.generate_stu(fr0);
-    //builder.generate_stu(gr0);
-  //builder.generate_ref();
-   builder.generate_tel_binary_tsl_async();
+    builder.generate_tel_binary_tsl_async();
+    builder.parse_all_applications();
   } catch (std::string e)
   {
     std::cerr  << e << " : " << strerror(errno) << std::endl;
     return errno;
   }
-#if 0  
-  std::cout << m1 << std::endl;
-  std::cout << l1 << std::endl;
-  std::cout << f1 << std::endl;
-#endif
+
           
   int hardwareThreads = std::thread::hardware_concurrency();// number of threads supported by the hardware
   std::chrono::high_resolution_clock::time_point
@@ -148,11 +127,11 @@ show_usage(const char *s)
 {
   std::cout<<"Usage:   "<< s <<" [-option] [argument]"<<std::endl;
   std::cout<<"option:  "<<"-h show help information"<<std::endl;
-  std::cout<<"         "<<"-i docfilename (eg: loc_str.doc)"<<std::endl;
-  std::cout<<"         "<<"-c config directory (should contains lang.cnf ...)"<<std::endl;
-  std::cout<<"         "<<"-t data translation files directory (*.FR0 ...)"<<std::endl;
+
+  std::cout<<"         "<<"-s string path data translation files directory (*.FR0 ...) and config directory (should contains lang.cnf ...)"<<std::endl;
+  std::cout<<"         "<<"-u utl should contains loc_str.doc ..."<<std::endl;
   std::cout<<"         "<<"-v show version infomation"<<std::endl;
-  std::cout<<"example: "<< s <<" -i loc_str.doc -c config -t data"<<std::endl;
+  std::cout<<"example: "<< s <<" -u $utl_path -s $strings_path -d"<<std::endl;
 }
 
 

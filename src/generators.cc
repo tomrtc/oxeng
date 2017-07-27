@@ -39,25 +39,8 @@ std::ostream& operator<< (std::ostream& os, const fldrecord& f);
 
 static const std::string doc_extension {"doc"};
 static const std::string def_extension {"def"};
+static const  std::string& dummy_ref {"1.0"} ; 
 
-void
-builder_context::set_target(const char *t_target_path_argv)
-{
-  if (file_exists(t_target_path_argv))
-    {// save the target file name and get the file content in a string, in addition the file format is fixed to ease parsing.
-      std::string basename_argv { basename(const_cast<char*>(t_target_path_argv))};
-      m_target = std::string(t_target_path_argv);
-      /* const_cast can be used to remove or add const to a variable; no other C++ cast is capable of removing it (not even reinterpret_cast). 
-         It is important to note that modifying a formerly const value is only undefined if the original variable is const; 
-         if you use it to take the const off a reference to something that wasn't declared with const, it is safe. 
-         This can be useful when overloading member functions based on const, for instance. It can also be used to add const to an object, such as to call a member function overload.
-         const_cast also works similarly on volatile, though that's less common*/
-      size_t npos = basename_argv.find_last_of('.');
-      m_target_basename =  basename_argv.substr(0,npos);
-    }
-  else
-    {;} //throw(errno);
-}
 
 static const std::vector<std::string> FldSTR { "FLD", "POS1", "POS2", "LEN", "CST" };
 static const std::vector<std::string> FldAPP { "STR", "REF", "LEN", "CST" };
@@ -111,43 +94,28 @@ builder_context::insert_record(const std::string& input, string_map_t &t_string_
   return false;
 }
 
-void
-builder_context::parse_target()
-{
-  std::string orig_str_file_content = get_file_contents(m_target);
-  size_t   initial_hash {std::hash<std::string>{}(orig_str_file_content)};
-  std::string fixed_str_file_content {};
-  
-  canonize_file_format(orig_str_file_content, fixed_str_file_content); // fix NO_CST dangling and remove comments.
-  std::cout<<"Doc filename : " << m_target << " : " << initial_hash <<  std::endl;
-  std::vector<std::string> docitems {};
-  if (m_file_map[m_target_basename] == "STR")
-    {
-      docitems = std::move(split_docfile(fixed_str_file_content)); 
-    }
-  else
-    {
-      docitems = std::move(split_appfile(fixed_str_file_content));
-    }
-  for(const auto& i : docitems)
-    {
-      bool result { insert_record(i, m_string_map) };
-      if (result)
-        std::cout << "." ;
-    }
-  std::cout << std::endl ;
-}
+
 
 void
-builder_context::set_configuration_directory(const char* t_configuration_directory)
+builder_context::set_string_directory(const char* t_string_directory)
 {
-  if (directory_exists(t_configuration_directory))
+  std::string data_directory {t_string_directory};
+  data_directory += "/data";
+  if (directory_exists(data_directory.c_str()))
     {
-      std::string path_lang {t_configuration_directory};
-      std::string path_file {t_configuration_directory};  
-      path_lang += "/lang.cnf";  
-      path_file += "/file.cnf";
-      {
+      m_data_directory = data_directory;
+    }
+  else
+    throw(errno);
+   
+  if (directory_exists(t_string_directory))
+    {
+      std::string path_lang {t_string_directory};
+      std::string path_file {t_string_directory};
+      m_string_path =  path_lang; // keep the string path.
+      path_lang += "/config/lang.cnf";  
+      path_file += "/config/file.cnf";
+      {//load lang.cnf
         std::string lang_cnf { get_file_contents(path_lang.c_str())};
         static const  std::regex& rgx {R"raw((\w+)\s+\"([^\"]*)\")raw", std::regex::optimize};
         std::sregex_iterator endit;
@@ -157,46 +125,38 @@ builder_context::set_configuration_directory(const char* t_configuration_directo
         }
       }
       
-      {
+      { // load file.cnf
         std::string file_cnf { get_file_contents(path_file.c_str())};
         static const std::regex& rgx{R"raw((\d+)\s+([\w.]+)\s+(\w+))raw" ,std::regex::optimize};
         std::sregex_iterator endit;
         for (std::sregex_iterator it(file_cnf.begin(), file_cnf.end(), rgx); it != endit; ++it) {
           auto&& m = *it;
-          std::string name{m[2]}; 
+          std::string name{m[2]};
+          int index { std::stoi(m[1])};
+          std::string type{m[3]}   ;
           size_t npos = name.find_last_of('.');
           name =  name.substr(0,npos);
-          m_file_map[name]  = m[3];
+          if (type == "STR")
+            m_tel_file_map[index] = name;
+             if (type == "APP")
+            m_app_file_map[index] = name;
+         
         }
       }
     }
   else
-    {;} // throw(errno);
+    throw(errno);
 }
 
-void
-builder_context::set_data_directory(const char* t_data_directory)
-{
-  if (directory_exists(t_data_directory))
-    {
-      m_data_directory = std::string{t_data_directory};
-    }
-  else
-    { ; } // throw(errno);
-      
-} 
+
 
 void
-builder_context::set_source_directory(const char* t_source_directory)
+builder_context::set_utl_directory(const char* t_utl_directory)
 {
-  m_source_directory = std::string(t_source_directory);
+  m_utl_directory = std::string(t_utl_directory);
 }
 
-void
-builder_context::set_string_path(const char* t_string_path)
-{
-  m_string_path = std::string(t_string_path);
-}
+
 
 
 void
@@ -248,7 +208,7 @@ std::string header_helper(std::string name)
   size_t npos = cpp_guard.find_last_of('.');
   cpp_guard[npos] = '_';
   std::transform(cpp_guard.begin(), cpp_guard.end(), cpp_guard.begin(), ::toupper);
-  cpp_guard = "#ifndef " + cpp_guard + "\n#define " + cpp_guard + "/*Generated file do not modify!.*/\n\n";
+  cpp_guard = "#ifndef " + cpp_guard + "\n#define " + cpp_guard + "\n/*Generated file do not modify!.*/\n\n";
   return cpp_guard;
 }
 
@@ -364,8 +324,6 @@ generate_tel_includes_async(const std::string &t_name, const string_map_t  &t_st
   gencod_2.close();
   gentyp_1.close();
   gentyp_2.close();
-
-  
 }
 
 
@@ -378,7 +336,7 @@ string_map_t load_doc_file_async(const std::string filename, const std::string t
           
   std::string item {};
   
-  canonize_file_format(orig_str_file_content, fixed_str_file_content); // fix NO_CST dangling and remove comments.
+  canonize_file_format(orig_str_file_content, fixed_str_file_content, false); // fix NO_CST dangling and remove comments.
   for(size_t p=0, q=0; p!=fixed_str_file_content.npos; p=q) {
     item = fixed_str_file_content.substr(p+(p!=0), (q=fixed_str_file_content.find('\033', p+1))-p-(p!=0)) ;
     insert_async(item, current_string_map);
@@ -394,16 +352,16 @@ builder_context::parse_tel_targets_async()
   std::vector<std::future<string_map_t> > readers;
   
   std::cout << "Parallel launch : \033[4;40m\033[32m" << std::flush;
-  for(const auto& file : m_file_map)
+  for(const auto& file : m_tel_file_map)
     {
       
-      std::string target_path {file.first};
-      target_path = m_string_path+ "/" +target_path+ "." + doc_extension;
-      if  (file.second == "APP") continue; 
+      std::string target_path {file.second};
+      target_path = m_utl_directory + "/" +target_path+ "." + doc_extension;
+     
       if  (file_exists(target_path.c_str()))
         {
           std::cout <<"[" << file.first << "]" <<  std::flush;
-          readers.push_back(std::async(std::launch::async,  load_doc_file_async, file.first, target_path));
+          readers.push_back(std::async(std::launch::async,  load_doc_file_async, file.second, target_path));
         }
       else
         std::cout << "\033[4;40m\033[31m[" << target_path   << "]\033[m\033[4;40m\033[32m"  << std::endl;
@@ -420,117 +378,106 @@ builder_context::parse_tel_targets_async()
     m_string_map.insert(result.begin(), result.end());
   }
   std::cout << "}\033[m" << std::endl;
-  generate_ref();
+  generate_tel_ref();
 }
- 
 
 
-void
-builder_context::parse_tel_targets()
-{
-  for(const auto& file : m_file_map)
-    {
-      // std::cout << file.first << "/" << file.second << std::endl;
-      std::string target_path {file.first};
-      target_path = "../test/" +target_path+ "." + doc_extension;
-      if  (file.second == "APP") continue; 
-      if  (file_exists(target_path.c_str()))
-        {
-          string_map_t  current_string_map {} ;
-          std::cout << "\033[4;40m\033[32m[" << file.first << "]\033[m" << "\t{" ;
-          std::string orig_str_file_content {get_file_contents(target_path.c_str())};
-          std::string fixed_str_file_content {};
-          
-          std::string item {};
-          canonize_file_format(orig_str_file_content, fixed_str_file_content); // fix NO_CST dangling and remove comments.
-          for(size_t p=0, q=0; p!=fixed_str_file_content.npos; p=q) {
-            item = fixed_str_file_content.substr(p+(p!=0), (q=fixed_str_file_content.find('\033', p+1))-p-(p!=0)) ;
-            bool result { insert_record(item, current_string_map) };
-            if (result)
-              std::cout << "\033[32m.\033[m" ;
-            else
-              std::cout << "\033[31m~\033[m" ;
-          }
-          std::cout <<"}" << std::endl ;
-
-          generate_tel_includes_async(file.first, current_string_map);
-          // merge the current entries in the member map.
-          m_string_map.insert(current_string_map.begin(), current_string_map.end());
-        }
-      else
-        std::cout << "\033[4;40m\033[31m" << target_path   << "\033[m"  << std::endl;
-    }
-   
-
-}
-      
 void 
-builder_context::load_all_tsl(const std::string language)
+builder_context::load_def(const std::string t_target_basename)
 {
-
-  for(const auto& file : m_file_map)
-    {
-      std::string lang_extension {language};
-      std::transform(lang_extension.begin(), lang_extension.end(), lang_extension.begin(), ::tolower);
-
-      std::string tsl_path {m_data_directory};
-      tsl_path += "/" + file.first + "." + lang_extension ;
-
-      if (file_exists(tsl_path.c_str()))
-        {
-          if (m_debug)
-            std::cout << "\033[4;40m\033[32m" << file.first << " : " << tsl_path  << "\033[m" << std::endl;
-          std::string tslfile_content {get_file_contents(tsl_path.c_str())};
-          std::string item {};
-        
-          for(size_t p=0, q=0; p!=tslfile_content.npos; p=q) {
-            item = tslfile_content.substr(p+(p!=0), (q=tslfile_content.find('\033', p+1))-p-(p!=0)) ;
-            insert_tsl(language, item);
-          }
-          
-        }
-      else
-        std::cout << "\033[4;40m\033[32m" << m_lang_map[language] << " : \033[m\033[31m#" << "{" << tsl_path << "}"  << "\033[m"  << std::endl;
-    }
-}
-
-void
-builder_context::insert_def(const std::string& input)
-{
-  static const std::regex& rgx {R"raw((\d+\.\d+)\n(.+))raw" , std::regex::optimize};
+  static const std::regex& rgx {R"raw((\d+)\.(\d+)\n([^\033]+))raw" , std::regex::optimize};
   static const std::sregex_iterator endit;
-
-  for (std::sregex_iterator it(input.begin(), input.end(), rgx); it != endit; ++it) {
-    auto&& m = *it;
-    m_all_tsl_map[m[1]]["DEF"] = m[2];
-  }
-}
-
-void 
-builder_context::load_def()
-{
   std::string def_path {m_data_directory};
-  def_path += "/" + m_target_basename + "." + def_extension ;
+  def_path += "/" + t_target_basename + "." + def_extension ;
 
   if (file_exists(def_path.c_str()))
     {
       if (m_debug)
         std::cout << "\033[4;40m\033[32m" <<  def_path  << "\033[m" << std::endl;
-      // std::vector<std::string> def_vector { split_tslfile(get_file_contents(def_path.c_str()))};
-          
-      //     for(const auto& a_def_record : def_vector)
-      //      insert_def(a_def_record);
+      std::string deffile_content {get_file_contents(def_path.c_str())};
+      
+      for(size_t p=0, q=0; p!=deffile_content.npos; p=q) {
+        std::string item = deffile_content.substr(p+(p!=0), (q=deffile_content.find('\033', p+1))-p-(p!=0)) ;
+       
+        for (std::sregex_iterator it(item.begin(), item.end(), rgx); it != endit; ++it) {
+          auto&& m = *it;
+          std::string payload {m[3]};
+
+          int ref_int{ std::stoi(m[1]) *10000 + std::stoi(m[2])}; 
+           auto pit = m_def_map.find(ref_int);
+           if (pit != m_def_map.end())
+          {    
+  //   .erase (it);
+  std::cerr << "ref : " << ref_int/10000 << "." << ref_int%10000 << "already exist! dup def in : " <<def_path << std::endl;
+          if (pit->second.size() < payload.size() ){ 
+           // m_def_map [ref_int] = payload;
+             std::cerr << "ref : " << ref_int << " redefined!" << std::endl;
+          } 
+          } else
+              m_def_map [ref_int] = payload;
+        }
+      }
     }
   else
     std::cerr << "Missing DEF file name in data directory : " <<def_path << std::endl;
     
 } 
 
+void
+builder_context::generate_tel_hlp()
+{
+  std::ofstream hlp_stream("HLP_STR",  std::ios_base::out );
+
+  for(const auto& file : m_tel_file_map)
+    {
+      
+      load_def(file.second);
+    }
+
+  for  (const auto& item : m_def_map) {
+    int head = (item.first /10000);
+    int tail = (item.first%10000);
+    if (head > 2) break;
+     std::string ref{""};
+     ref = std::to_string(head) + "." + std::to_string(tail); 
+    std::vector<std::string> def_item{ split_appfile(item.second) }; 
+    if (def_item.size() < 4) continue;
+  
+    def_item.pop_back();
+    
+    std::string linked_ref{def_item.back()};
+     def_item.pop_back();
+   
+       try {
+            int def_lenght { std::stoi(def_item.back()) };
+             def_item.pop_back();
+        
+           def_item.pop_back();
+
+      hlp_stream << "\033" << ref << std::endl;
+    for (const auto &line : def_item)
+      hlp_stream << line<< std::endl;
+
+    hlp_stream << def_lenght << std::endl;
+    hlp_stream << def_lenght << std::endl;
+    hlp_stream << linked_ref<< std::endl;
+    
+    
+  }
+  catch (const std::invalid_argument& ia) {
+	  std::cerr << "Invalid def format  for ref :" << ref << '\n';
+  }
+  
+      
+
+    } 
+  }
+  
 
 
 
 void
-builder_context::generate_locate()
+builder_context::generate_tel_locate()
 {
   std::ofstream locate("LOCATE",std::ios_base::out); //  std::ios_base::app | 
   for  (const auto& item : m_string_map) {
@@ -538,10 +485,11 @@ builder_context::generate_locate()
     // locate << item << "|" << m_string_map[item].m_pos1 << "|" << m_string_map[item].m_pos2 << "|" << m_string_map[item].m_len << "|" << m_string_map[item].m_cst  << std::endl;
   }
 }
+
 void
-builder_context::generate_ref()
+builder_context::generate_tel_ref()
 {
-  std::ofstream ref_stream("REF_STR",  std::ios_base::app );//| std::ios_base::out
+  std::ofstream ref_stream("REF_STR",  std::ios_base::out );
   for  (const auto& item : m_string_map) {
     for  (const auto& ref:item.second.m_refs)
       {
@@ -550,24 +498,6 @@ builder_context::generate_ref()
     ref_stream << "\033*" << item.first <<"*"<< item.second.m_refs.size() << std::endl;
   }
 }
-
-
-
-
-void
-builder_context::insert_tsl(const std::string& lang, const std::string& input)
-{
-  static const std::regex& rgx {R"raw((\d+\.\d+)\n(.+)\n)raw", std::regex::optimize };
-  static const std::sregex_iterator endit;
-  static const  std::string& dummy_ref {"1.0"} ; 
-
-  for (std::sregex_iterator it(input.begin(), input.end(), rgx); it != endit; ++it) {
-    auto&& m = *it;
-    if (m[1] != dummy_ref)
-      m_all_tsl_map[m[1]][lang] = m[2];
-  }
-}
-
 
 void
 builder_context::generate_stu(const std::string language,const std::map<std::string, std::string>  &t_tsl_map)
@@ -611,17 +541,17 @@ builder_context::load_tsl_async(const std::string& language)
 {
   static const std::regex& rgx {R"raw((\d+\.\d+)\n(.+)\n)raw", std::regex::optimize };
   static const std::sregex_iterator endit;
-  static const  std::string& dummy_ref {"1.0"} ; 
+  
   std::string lang_extension {language};
   bool error = false;
   std::transform(lang_extension.begin(), lang_extension.end(), lang_extension.begin(), ::tolower);
   std::map<std::string, std::string>  a_tsl_map {}; 
 
-  for(const auto& file : m_file_map)
+  for(const auto& file : m_tel_file_map)
     {
       std::string tsl_path {m_data_directory};
-      tsl_path += "/" + file.first + "." + lang_extension ;
-
+      tsl_path += "/" + file.second + "." + lang_extension ;
+     
       if (file_exists(tsl_path.c_str()))
         {
           std::string tslfile_content {get_file_contents(tsl_path.c_str())};
@@ -635,10 +565,8 @@ builder_context::load_tsl_async(const std::string& language)
               if (m[1] != dummy_ref)
                 a_tsl_map[m[1]] = m[2];
             }
-        
-          }
-          
-        }
+           }
+         }
       else
         error  = true;
     }
@@ -671,8 +599,12 @@ builder_context::generate_tel_binary_tsl_async()
       readers.push_back(std::async(std::launch::async,  static_call_load_tsl_async, this ,language.first));
     }
   std::cout <<"\033[m" << std::endl;
+  generate_tel_locate();
+    generate_tel_ref();
+    generate_tel_hlp();
   std::cout << "Waiting tasks parallel: {\033[4;40m\033[32m" << std::flush;
   for(auto  &reader : readers) {
+    
     reader.wait();
     bool result { std::move(reader.get()) } ;
     if (!result)
@@ -685,3 +617,158 @@ builder_context::generate_tel_binary_tsl_async()
 }
 
 
+
+
+void
+generate_app_includes_async(const std::string &t_name, const string_map_t  &t_string_map)
+{
+  // Three files containing declaration of constants:
+  // gencst_<string file>_1.hpp:
+  // contains all constants that define for each context the number of strings of
+  // the context (included in inc/cpu_dec/constants/string.hpp).
+  std::string   gencst_1_name {get_include_filename("gencst_",t_name,  "_1.hpp")};
+  std::ofstream gencst_1(gencst_1_name );
+  gencst_1 << header_helper(gencst_1_name);
+  // gencst_<string file>_2.hpp:
+  // contains all constants that define the the constant identifying each context
+  // (included in inc/cpu_dec/constants/string.hpp).
+  std::string   gencst_2_name {get_include_filename("gencst_",t_name,  "_2.hpp")};
+  std::ofstream gencst_2(gencst_2_name );
+  gencst_2 << header_helper(gencst_2_name);
+
+  std::string app_define{t_name} ;
+  app_define.erase(app_define.begin() + app_define.find('_'), app_define.end());
+  std::transform(app_define.begin(), app_define.end(), app_define.begin(), ::toupper);
+
+   std::string  ref_app_file { app_define};
+   ref_app_file = "REF_" + ref_app_file;
+   std::ofstream app_ref(ref_app_file);
+
+
+  gencst_2 << "#define SIZE_STR_FIC_" << app_define<< "\t" << t_string_map.size() <<std::endl;
+  for  ( const auto& item : t_string_map) {
+    if (item.second.m_cst == "-undefined")
+        gencst_1 << "/* no constant for idx " << item.first << " */" << std::endl;
+     else
+       gencst_1 << "#define " << item.second.m_cst << "\t" << item.first << std::endl;
+    app_ref << item.second.m_refs[0].first << std::endl; 
+  }
+    
+  gencst_1<< std::endl<< "#endif" << std::endl;
+  gencst_2<< std::endl<< "#endif" << std::endl;
+  gencst_1.close();
+  gencst_2.close();
+  app_ref.close();
+}
+
+
+void
+builder_context::generate_app_tsl(const std::string language,const std::string &app_name,const string_map_t  &app_string_map, 
+const std::map<std::string, std::string>  &t_tsl_map)
+{
+  std::string name{app_name};
+  
+ name.erase(name.begin() + name.find('_'), name.end());
+  name = language + "_" + name;
+  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
+ 
+  std::ofstream str_app(name,  std::ios_base::out);
+  for  (const auto& item : app_string_map) {
+    size_t len = item.second.m_len ;
+    for  (const auto& ref:item.second.m_refs)
+      {
+        if (t_tsl_map.count(ref.first) > 0)
+          {
+            std::string locale_str {t_tsl_map.at(ref.first)};
+	    
+            str_app << std::left << std::setw(len) << locale_str << std::endl;
+          } 
+        else
+          { 
+            str_app << std::left << std::setw(len) << "? " << std::endl;
+          }
+      }
+   
+  }
+}
+
+bool
+builder_context::load_app_tsl_async(const std::string& language, const std::string &app_name,const string_map_t  &app_string_map )
+{
+  static const std::regex& rgx {R"raw((\d+\.\d+)\n(.+)\n)raw", std::regex::optimize };
+  static const std::sregex_iterator endit;
+ 
+  std::string lang_extension {language};
+  bool error = false;
+  std::transform(lang_extension.begin(), lang_extension.end(), lang_extension.begin(), ::tolower);
+  std::map<std::string, std::string>  a_tsl_map {}; 
+
+  
+      std::string tsl_path {m_data_directory};
+      tsl_path += "/" + app_name + "." + lang_extension ;
+  
+   
+      if (file_exists(tsl_path.c_str()))
+        {
+          std::string tslfile_content {get_file_contents(tsl_path.c_str())};
+          std::string item {};
+        
+          for(size_t p=0, q=0; p!=tslfile_content.npos; p=q) {
+            item = tslfile_content.substr(p+(p!=0), (q=tslfile_content.find('\033', p+1))-p-(p!=0)) ;
+       
+            for (std::sregex_iterator it(item.begin(), item.end(), rgx); it != endit; ++it) {
+              auto&& m = *it;
+              if (m[1] != dummy_ref)
+                a_tsl_map[m[1]] = m[2];
+            }
+           }
+         }
+      else
+        error  = true;
+    
+  generate_app_tsl(language, app_name, app_string_map, a_tsl_map);
+  return error;
+}
+
+
+void
+builder_context::parse_all_applications()
+{
+  for(const auto& file : m_app_file_map)
+    {
+      std::cout << file.first << "/" << file.second << std::endl;
+      std::string target_path {file.second};
+      target_path = m_utl_directory + "/" +target_path+ "." + doc_extension;
+      if  (file.second == "STR") continue; // skip tel.
+      if  (file_exists(target_path.c_str()))
+        {
+          string_map_t  current_string_map {} ;
+          std::cout << "\033[4;40m\033[32m[" << file.first << "]\033[m" << "\t{" ;
+          std::string orig_str_file_content {get_file_contents(target_path.c_str())};
+          std::string fixed_str_file_content {};
+          
+          std::string item {};
+          canonize_file_format(orig_str_file_content, fixed_str_file_content, true); // fix NO_CST dangling and remove comments.
+          for(size_t p=0, q=0; p!=fixed_str_file_content.npos; p=q) {
+            item = fixed_str_file_content.substr(p+(p!=0), (q=fixed_str_file_content.find('\n', p+1))-p-(p!=0)) ;
+            if (item.size() > 0) { 
+            bool result { insert_record(item, current_string_map) };
+            if (result)
+              std::cout << "\033[32m.\033[m" ;
+            else
+              std::cout << "\033[31m~\033[m" ;
+              }
+
+          }
+          std::cout <<"}" << std::endl ;
+          generate_app_includes_async(file.second, current_string_map);
+           for(const auto language : m_lang_map)
+    {
+                std::cout<< "[" << language.first<< "]" << std::flush;
+           load_app_tsl_async(language.first, file.second, current_string_map);
+    }
+        }
+      else
+        std::cout << "\033[4;40m\033[31m" << target_path   << "\033[m"  << std::endl;
+    }
+}

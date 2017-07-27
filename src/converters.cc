@@ -110,7 +110,7 @@ void fix_format(std::string& file, size_t &output_index)
 }
 
 void
-canonize_file_format( std::string& input,std::string& output)
+canonize_file_format( std::string& input,std::string& output, bool application)
 {
   const size_t input_lenght   {input.size()};
   size_t previous_input_index {0};
@@ -142,7 +142,7 @@ canonize_file_format( std::string& input,std::string& output)
       input_index = input.find( '\n', previous_input_index);
       previous_input_index = input_index;
     } else if (input.at(input_index + 1) == '\023') {
-      if (output.find_first_of("FLD=") != std::string::npos)
+      if (! application && output.find_first_of("FLD=") != std::string::npos)
         output.erase(0, output.find_first_of("FLD="));
       return;
     } else
