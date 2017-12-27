@@ -1,4 +1,3 @@
-
 #include <cstdlib>
 #include <iostream>
 
@@ -16,7 +15,7 @@
 //#include <utility>
 #include <initializer_list>
 #include <thread>
-// C/Posix/linux headers. 
+// C/Posix/linux headers.
 // no more necessary #define _XOPEN_SOURCE 500
 #include <ftw.h>
 #include <stdio.h>
@@ -48,10 +47,10 @@ main (int argc,char *argv[])
   char     optchar;
   builder_context builder;
 
-  // avoid useless compatibilty with C.								
-  std::ios_base::sync_with_stdio(false);			
+  // avoid useless compatibilty with C.
+  std::ios_base::sync_with_stdio(false);
   std::cin.tie(NULL);
- 
+
   std::chrono::high_resolution_clock::time_point
     tstart = std::chrono::high_resolution_clock::now();
 
@@ -65,12 +64,12 @@ main (int argc,char *argv[])
     while((optchar=getopt(argc,argv,"hvds:u:"))!=-1)
       {
 	switch(optchar)
-	  {      
+	  {
 	  case 'h':/*option h show the help*/
 	    show_usage(argv[0]);
 	    break;
-         
-	           
+
+
 	  case 'u': /*-u $utl_path */
 	    builder.set_utl_directory(optarg);
 	    break;
@@ -82,9 +81,9 @@ main (int argc,char *argv[])
 	  case 'v':/*display the version.*/
 	    std::cout<<"The current version is 0.1."<<std::endl;
 	    break;
-          
+
 	  case 'd': /* debug and fun!*/
-	    builder.set_debug();  
+	    builder.set_debug();
 	    break;
 
 	  default:
@@ -111,7 +110,7 @@ main (int argc,char *argv[])
     return errno;
   }
 
-          
+
   int hardwareThreads = std::thread::hardware_concurrency();// number of threads supported by the hardware
   std::chrono::high_resolution_clock::time_point
     tstop = std::chrono::high_resolution_clock::now();
@@ -167,5 +166,3 @@ void show_smiley(void)
 {
   std::cout<<smiley<<std::endl;
 }
-
-

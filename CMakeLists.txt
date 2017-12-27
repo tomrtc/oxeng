@@ -25,10 +25,10 @@ find_program( MEMORYCHECK_COMMAND valgrind )
 set( MEMORYCHECK_COMMAND_OPTIONS "--trace-children=yes --leak-check=full" )
 set( MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/valgrind_suppress.txt" )
 
-find_package(BISON)
-if (NOT BISON_FOUND)
-	message(SEND_ERROR "Could not find bison parser generator!")
-endif()
+# find_package(BISON)
+# if (NOT BISON_FOUND)
+# 	message(SEND_ERROR "Could not find bison parser generator!")
+# endif()
 
 
 
@@ -38,10 +38,10 @@ endif()
 # FLEX_LIBRARIES - The flex libraries
 # FLEX_INCLUDE_DIRS - The path to the flex headers
 
-find_package(FLEX)
-if (NOT FLEX_FOUND)
-	message(SEND_ERROR "Could not find flex scanner generator!")
-endif()
+# find_package(FLEX)
+# if (NOT FLEX_FOUND)
+# 	message(SEND_ERROR "Could not find flex scanner generator!")
+# endif()
 find_package(GOLD)
 if (NOT GOLD_FOUND)
         message(SEND_ERROR "Could not find gold linker in binutils!")
@@ -61,20 +61,20 @@ add_executable(${PROJECT_NAME} ${PROJECT_SRC})
 
 
 add_test(
-    NAME Testv${PROJECT_NAME} 
-    COMMAND  ${PROJECT_NAME}  -v 
+    NAME Testv${PROJECT_NAME}
+    COMMAND  ${PROJECT_NAME}  -v
     )
   set_tests_properties (Testv${PROJECT_NAME} PROPERTIES PASS_REGULAR_EXPRESSION "The current version is")
 
 add_test(
-    NAME Testh${PROJECT_NAME} 
-    COMMAND  ${PROJECT_NAME}  -h 
+    NAME Testh${PROJECT_NAME}
+    COMMAND  ${PROJECT_NAME}  -h
     )
   set_tests_properties (Testh${PROJECT_NAME} PROPERTIES PASS_REGULAR_EXPRESSION "Usage:")
 
 add_test(
-    NAME Testfile${PROJECT_NAME} 
-    COMMAND  ${PROJECT_NAME}  -i ../test/loc_str.doc 
+    NAME Testfile${PROJECT_NAME}
+    COMMAND  ${PROJECT_NAME}  -i ../test/loc_str.doc
     )
   set_tests_properties (Testfile${PROJECT_NAME} PROPERTIES PASS_REGULAR_EXPRESSION "Doc filename : ../test/loc_str.doc")
 add_test(
@@ -84,18 +84,18 @@ add_test(
   set_tests_properties (Testfile${PROJECT_NAME} PROPERTIES PASS_REGULAR_EXPRESSION "Doc filename : ../test/loc_str.doc : 16471785882770998785")
 
 add_test(
-    NAME Testconfig${PROJECT_NAME} 
-    COMMAND  ${PROJECT_NAME}  -c ../test/config 
+    NAME Testconfig${PROJECT_NAME}
+    COMMAND  ${PROJECT_NAME}  -c ../test/config
     )
   set_tests_properties (Testconfig${PROJECT_NAME} PROPERTIES PASS_REGULAR_EXPRESSION "Config directory : ../test/config")
 
   add_test(
-    NAME Testdata${PROJECT_NAME} 
+    NAME Testdata${PROJECT_NAME}
     COMMAND  ${PROJECT_NAME}  -t ../test/data
     )
   set_tests_properties (Testdata${PROJECT_NAME} PROPERTIES PASS_REGULAR_EXPRESSION "Data directory : ../test/data")
 
- 
+
 
 
 
@@ -115,5 +115,5 @@ set(CPACK_PACKAGE_DEFAULT_LOCATION "/opt/oxeng/")
 set(CPACK_PACKAGE_INSTALL_DIRECTORY "bin")
 set(CPACK_PACKAGING_INSTALL_PREFIX "/")
 set(CPACK_SET_DESTDIR ON)
- 
+
 include(CPack)
