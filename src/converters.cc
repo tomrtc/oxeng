@@ -12,7 +12,7 @@
 #include <sstream>
 #include <iomanip>      // std::setw
 
-// C/Posix/linux headers. 
+// C/Posix/linux headers.
 // no more necessary #define _XOPEN_SOURCE 500
 #include <stdio.h>
 #include <libgen.h> //basename(3) posix
@@ -77,8 +77,8 @@ static const std::unordered_map<std::string, const char *>  map_utf7_l	 {
 
 void fix_format(std::string& file, size_t &output_index)
 {
-  static const std::string& search_return_fld   {"\nFLD="} ;  
-  static const std::string& replace_escape_fld  {"\033FLD="} ;  
+  static const std::string& search_return_fld   {"\nFLD="} ;
+  static const std::string& replace_escape_fld  {"\033FLD="} ;
   static const std::string& search_nocst_equal  {"NO_CST="};
   static const std::string& search_bogus_ref    {"\n\nREF="};
   static const std::string& replace_fixed_ref   {"\nREF="};
@@ -86,7 +86,7 @@ void fix_format(std::string& file, size_t &output_index)
   static const std::string& search_empty_nocst  {"NO_CST"};
   static const std::string& replace_empty_nocst {"NOCST=-undefined"};
   static const std::string& replace_empty_string {""};
-  
+
   size_t pos =output_index ;
   while ((pos = file.find(search_nocst_equal, pos)) != std::string::npos) {
     file.replace(pos, search_nocst_equal.length(), replace_nocst_equal);
@@ -119,16 +119,16 @@ canonize_file_format( std::string& input,std::string& output, bool application)
   size_t output_index         {0};
 
   input += "/\023"; // add XOFF as a sentinel.
-  
-  do { 
+
+  do {
     input_index = input.find( '/', input_index);
-   
+
     if (! in_comment && (previous_input_index < input_index)) {
       output_index = output.size();
       output.append(input.substr(previous_input_index, input_index - previous_input_index));
       fix_format(output, output_index );
-      previous_input_index = input_index + 1; 
-    } 
+      previous_input_index = input_index + 1;
+    }
     if (in_comment && (input.at(input_index - 1) == '*')) {
       in_comment = false;
       previous_input_index = ++input_index;
@@ -148,8 +148,8 @@ canonize_file_format( std::string& input,std::string& output, bool application)
     } else
       input_index++;
   } while (input_index < input_lenght);
- 
-  
+
+
 }
 struct pattern_utf7
 {
@@ -190,7 +190,7 @@ struct pattern_utf7
   }
 };
 
-		       
+
 void
 from_alecode2utf8(std::string &input)
 {
@@ -228,7 +228,7 @@ size_t string_byte_size(const std::string &input)
   case 3 :   reserve_byte_size = 9; break;
   case 4 :   reserve_byte_size = 12; break;
   case 5 :   reserve_byte_size = 14; break;
-  default :  reserve_byte_size = count_head_bytes*2 + 3; break;    
+  default :  reserve_byte_size = count_head_bytes*2 + 3; break;
   }
   return reserve_byte_size;
 }
@@ -289,7 +289,7 @@ directory_exists(const char *path)
       errno = ENOTDIR;
       return false;
     }
-  
+
   return true;
 }
 
@@ -348,9 +348,9 @@ for(size_t p=0, q=0; p!=s.npos; p=q)
 #if MERY
 void fix_nocst(std::string& file)
 {
-   static const  std::string& search_return_fld  {"\nFLD="} ;  
+   static const  std::string& search_return_fld  {"\nFLD="} ;
 
-   static const  std::string& replace_escape_fld  {"\033FLD="} ;  
+   static const  std::string& replace_escape_fld  {"\033FLD="} ;
    static  const std::string& search_nocst_equal  {"NO_CST="};
    static  const std::string& search_bogus_ref    {"\n\nREF="};
    static  const std::string& replace_fixed_ref   {"\nREF="};
@@ -358,9 +358,9 @@ void fix_nocst(std::string& file)
    static  const std::string& search_empty_nocst  {"NO_CST"};
    static  const std::string& replace_empty_nocst {"NOCST=-undefined"};
    //static  const std::regex&  regex_comment_cee   {R"(/\*([^*]|[\r\n]|(\*+([^*\/]|[\r\n])))*\*/)"};
-   static  const std::regex&  regex_comment_ceepp {R"(//[^\n]*)" };  
+   static  const std::regex&  regex_comment_ceepp {R"(//[^\n]*)" };
    static  const std::string& replace_empty_string {""};
-  
+
   size_t pos = 0;
   while ((pos = file.find(search_nocst_equal, pos)) != std::string::npos) {
     file.replace(pos, search_nocst_equal.length(), replace_nocst_equal);
@@ -380,7 +380,7 @@ void fix_nocst(std::string& file)
   while ((pos = file.find(search_bogus_ref, pos)) != std::string::npos) {
     file.replace(pos, search_bogus_ref.length(), replace_fixed_ref);
     pos += replace_fixed_ref.length();
-  } 
+  }
      pos = 0;
   while ((pos = file.find(search_return_fld, pos)) != std::string::npos) {
     file.replace(pos, search_return_fld.length(), replace_escape_fld);
