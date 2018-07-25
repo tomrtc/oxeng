@@ -406,10 +406,14 @@ builder_context::load_def(const std::string t_target_basename)
            if (pit != m_def_map.end())
           {
   //   .erase (it);
+#if 0
   std::cerr << "ref : " << ref_int/10000 << "." << ref_int%10000 << "already exist! dup def in : " <<def_path << std::endl;
+#endif
           if (pit->second.size() < payload.size() ){
            // m_def_map [ref_int] = payload;
+#if 0
              std::cerr << "ref : " << ref_int << " redefined!" << std::endl;
+#endif
           }
           } else
               m_def_map [ref_int] = payload;
@@ -463,7 +467,9 @@ builder_context::generate_tel_hlp()
 
   }
   catch (const std::invalid_argument& ia) {
+#if 0
 	  std::cerr << "Invalid def format  for ref :" << ref << '\n';
+#endif
   }
 
 
