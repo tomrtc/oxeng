@@ -39,7 +39,8 @@ parser(const std::string &t_file)
 {
 
   std::string file_content {get_file_contents(t_file)};
-
+  static const  std::regex& rgx {R"raw(/\*([^%*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)raw", std::regex::optimize};
+  static const  std::regex& rgxcpp {R"raw(//.*)raw", std::regex::optimize};
   static const std::string &delimiter_begin {"\n#ident \"managed_enum"};
 
   static const std::string &delimiter_end {"\n#ident \"end_managed_enum"};
@@ -58,8 +59,9 @@ parser(const std::string &t_file)
     q  = file_content.find_first_of("\n", position_end_managed_enum+delimiter_end.size());
 
     managed_enum_source = file_content.substr(position_begin_managed_enum + 1, q -position_begin_managed_enum -1 );
+    managed_enum_source = std::regex_replace(managed_enum_source, rgxcpp, "");
 
-    std::cout << "#{"<<  managed_enum_source << "}#\n"<< std::endl;
+    std::cout << "#{"<<  std::regex_replace(managed_enum_source, rgx, "") << "}#\n"<< std::endl;
   }
 
   return true;
