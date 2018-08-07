@@ -244,54 +244,6 @@ std::ostream& operator<< (std::ostream& os, const fldrecord& f){
 }
 
 
-std::string get_file_contents(const std::string filename)
-{
-  std::ifstream in(filename, std::ios::in | std::ios::binary);
-  if (in)
-    {
-      std::ostringstream contents;
-      contents << in.rdbuf();
-      in.close();
-      return(contents.str());
-    }
-  throw(filename);
-}
-
-bool
-file_exists(const char *path)
-{
-  struct stat fstat;
-  if ( stat(path, &fstat) )
-    {
-      std::cerr << path << " :" << strerror(errno) << std::endl;
-      return false;
-    }
-  if ( !S_ISREG(fstat.st_mode) )
-    {
-      errno = EISDIR;
-      return false;
-    }
-  return true;
-}
-
-
-bool
-directory_exists(const char *path)
-{
-  struct stat fstat;
-  if ( stat(path, &fstat) )
-    {
-      std::cerr << path << " :" << strerror(errno) << std::endl;
-      return false;
-    }
-  if ( !S_ISDIR(fstat.st_mode) )
-    {
-      errno = ENOTDIR;
-      return false;
-    }
-
-  return true;
-}
 
 
 std::vector<std::string>
