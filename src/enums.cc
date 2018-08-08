@@ -37,16 +37,15 @@ bool debug {false};
 bool
 parser(const std::string &t_file)
 {
-
+  std::string enum_name{"none"};
   std::string file_content {get_file_contents(t_file)};
   static const  std::regex& rgx {R"raw(/\*([^%*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)raw", std::regex::optimize};
   static const  std::regex& rgxcpp {R"raw(//.*)raw", std::regex::optimize};
   static const  std::regex& rgxblank {R"raw(\n[\t \n]+)raw", std::regex::optimize};
-
   static const std::string &delimiter_begin {"\n#ident \"managed_enum"};
-
   static const std::string &delimiter_end {"\n#ident \"end_managed_enum"};
   //static const std::string delimiter_end   {"\n#ident "};
+
 
   for(size_t p=0, q=0; p!=file_content.npos; p=q) {
     std::string managed_enum_source {""};
@@ -64,14 +63,65 @@ parser(const std::string &t_file)
     managed_enum_source = std::regex_replace(managed_enum_source, rgx, "");
     managed_enum_source = std::regex_replace(managed_enum_source, rgxcpp, "");
     managed_enum_source = std::regex_replace(managed_enum_source, rgxblank, "\n");
+    // std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
+
+    std::smatch m;
+    static const  std::regex& rgx_begin_name {R"raw(#ident \"managed_enum +(\w+))raw", std::regex::optimize};
+    static const  std::regex& rgx_end_name {R"raw(#ident \"end_managed_enum +(\w+))raw", std::regex::optimize};
+    static const  std::regex& rgx_declation_name {R"raw(enum[ \t]+(\w+).*\n?\{)raw", std::regex::optimize};
 
 
+    if (std::regex_search(managed_enum_source, m, std::regex(rgx_begin_name)))
+      {
+	std::cout << "match is " << m.ready() << " with " << m.size() << std::endl;
+	std::cout << m[0] << " :" << m[0].matched << std::endl;
+	std::cout << m[1] << " :" << m[1].matched << std::endl;
+	enum_name = m[1];
 
-    std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
+	if (std::regex_search(managed_enum_source, m, std::regex(rgx_end_name)))
+	  {
+	    if (m[1] != enum_name)
+	      {
+		std::cerr << "ERROR : incoherent managed_enum/end_managed_enum directives for "
+			  << enum_name << std::endl;
+		return false;
+	      }
+	    if (std::regex_search(managed_enum_source, m, std::regex(rgx_declation_name)))
+	      {
+		std::cout << "match is " << m.ready() << " with " << m.size() << std::endl;
+		std::cout << m[0] << " :" << m[0].matched << std::endl;
+		std::cout << m[1] << " :" << m[1].matched << std::endl;
+		if (m[1] != enum_name)
+		  {
+		    std::cerr << "ERROR : incoherent managed_enum and actual enum declaration for "
+			      << enum_name << " vs " << m[1] << std::endl;
+		    return false;
+		  }
+	      }
+	    else
+	      {
+		std::cerr << "ERROR :  Incorrect enum declaration for " << enum_name
+			  << " MUST be : enum " << enum_name << " { ..." << std::endl;
+		return false;
+	      }
+	  }
+	else
+	  {
+	    std::cerr << "ERROR : cannot find end_managed_enum directive for " << enum_name << std::endl;
+	    return false;
+	  }
+      }
+    else
+      {
+	std::cerr << "ERROR : Unrecognized managed_enum in code block :" << managed_enum_source << std::endl;
+	return false;
+      }
   }
-
+  std::cout << "#succes#" << std::endl;
   return true;
 }
+
+
 
 
 int
@@ -125,22 +175,22 @@ main (int argc,char *argv[])
 	  }
       }
   } catch (int e)
-  {
-    std::cerr  << " : " << strerror(errno) << std::endl;
-    return e;
-  }
+    {
+      std::cerr  << " : " << strerror(errno) << std::endl;
+      return e;
+    }
   catch (std::exception& e)
-  {
-    std::cerr << "exception caught: " << std::endl;
-  }
+    {
+      std::cerr << "exception caught: " << std::endl;
+    }
 
   try {
 
   } catch (std::string e)
-  {
-    std::cerr  << e << " : " << strerror(errno) << std::endl;
-    return errno;
-  }
+    {
+      std::cerr  << e << " : " << strerror(errno) << std::endl;
+      return errno;
+    }
 
 
   int hardwareThreads = std::thread::hardware_concurrency();// number of threads supported by the hardware
