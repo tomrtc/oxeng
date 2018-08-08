@@ -34,16 +34,159 @@ std::string input_file;
 bool debug {false};
 
 
+
+void
+parser_managed_enum(std::string &managed_enum_source)
+{
+  std::string enum_name{"none"};
+
+  std::smatch m;
+  static const  std::regex& rgx_begin_name {R"raw(#ident \"managed_enum +(\w+))raw", std::regex::optimize};
+  static const  std::regex& rgx_end_name {R"raw(#ident \"end_managed_enum +(\w+))raw", std::regex::optimize};
+  static const  std::regex& rgx_declation_name {R"raw(enum[ \t]+(\w+).*\n?\{)raw", std::regex::optimize};
+
+
+  if (std::regex_search(managed_enum_source, m, std::regex(rgx_begin_name)))
+    {
+
+      enum_name = m[1];
+
+      if (std::regex_search(managed_enum_source, m, std::regex(rgx_end_name)))
+	{
+	  if (m[1] != enum_name)
+	    {
+	      std::cerr << "ERROR : incoherent managed_enum/end_managed_enum directives for "
+			<< enum_name << std::endl;
+	      std::exit(-1);
+	    }
+	  if (std::regex_search(managed_enum_source, m, std::regex(rgx_declation_name)))
+	    {
+
+	      if (m[1] != enum_name)
+		{
+		  std::cerr << "ERROR : incoherent managed_enum and actual enum declaration for "
+			    << enum_name << " vs " << m[1] << std::endl;
+		  std::exit(-1);
+		}
+	      std::cout << "Valid enum " << enum_name << std::endl;
+
+	    }
+	  else
+	    {
+	      std::cerr << "ERROR :  Incorrect enum declaration for " << enum_name
+			<< " MUST be : enum " << enum_name << " { ..." << std::endl;
+	      std::exit(-1);
+	    }
+	}
+      else
+	{
+	  std::cerr << "ERROR : cannot find end_managed_enum directive for " << enum_name << std::endl;
+	  std::exit(-1);
+	}
+    }
+  else
+    {
+      std::cerr << "ERROR : Unrecognized managed_enum in code block :" << managed_enum_source << std::endl;
+      std::exit(-1);
+    }
+}
+std::string get_include_filename(const std::string t_prefix, const std::string &name, const std::string t_suffix)
+{
+  std::string tmp {t_prefix};
+  tmp = tmp + name + t_suffix;
+  return tmp;
+}
+
+std::string header_helper(std::string name)
+{
+  std::string cpp_guard {name};
+  size_t npos = cpp_guard.find_last_of('.');
+  cpp_guard[npos] = '_';
+  std::transform(cpp_guard.begin(), cpp_guard.end(), cpp_guard.begin(), ::toupper);
+  cpp_guard = "#ifndef " + cpp_guard + "\n#define " + cpp_guard + "\n/*Generated file do not modify!.*/\n\n";
+  return cpp_guard;
+}
+
+std::vector<std::string>
+split_pseudo_enum(const std::string& input,int submatch ) {
+  static const std::regex& re{R"raw(#define[ \t]+(\w+).*\n)raw", std::regex::optimize};
+
+  std::sregex_token_iterator
+    first{input.begin(), input.end(), re, submatch},
+    last;
+    return {first, last};
+}
+void
+parser_pseudo_enum(std::string &managed_enum_source)
+{
+  std::string pseudo_enum_name{"none"};
+
+  std::smatch m;
+  static const  std::regex& rgx_begin_name {R"raw(#ident \"pseudo_enum +(\w+))raw", std::regex::optimize};
+  static const  std::regex& rgx_end_name {R"raw(#ident \"end_pseudo_enum +(\w+))raw", std::regex::optimize};
+
+  if (std::regex_search(managed_enum_source, m, std::regex(rgx_begin_name)))
+    {
+      pseudo_enum_name = m[1];
+
+      if (std::regex_search(managed_enum_source, m, std::regex(rgx_end_name)))
+	{
+	  if (m[1] != pseudo_enum_name)
+	    {
+	      std::cerr << "ERROR : incoherent pseudo_enum/end_pseudo_enum directives for "
+			<< pseudo_enum_name << std::endl;
+	      std::exit(-1);
+	    }
+	  std::cout << "Valid pseudo_enum " << pseudo_enum_name << std::endl;
+	  std::string   gen_file_name {get_include_filename("gen_",pseudo_enum_name, "_str.hpp")};
+	  std::ofstream gen_file(gen_file_name);
+	  gen_file << header_helper(gen_file_name);
+	  gen_file << R"raw(
+
+const char*
+get_enum_name(int value, char* pdefault)
+{
+switch(value) {
+
+)raw";
+	  const std::vector<std::string> pseudo_values { split_pseudo_enum(managed_enum_source,1)};
+	  for (const auto& value: pseudo_values)
+	    gen_file  << "case " << value  << " :\n\treturn \"" << value << "\";\n\tbreak;"<< std::endl;
+	  gen_file << R"raw(
+  default:
+  return pdefault;
+  }
+}
+#endif
+)raw";
+	  gen_file.close();
+	}
+      else
+	{
+	  std::cerr << "ERROR : cannot find end_pseudo_enum directive for " << pseudo_enum_name << std::endl;
+	  std::exit(-1);
+	}
+    }
+  else
+    {
+      std::cerr << "ERROR : Unrecognized pseudo_enum in code block :" << managed_enum_source << std::endl;
+      std::exit(-1);
+    }
+}
+
+
 bool
 parser(const std::string &t_file)
 {
-  std::string enum_name{"none"};
+
   std::string file_content {get_file_contents(t_file)};
   static const  std::regex& rgx {R"raw(/\*([^%*]|[\r\n]|(\*+([^*/]|[\r\n])))*\*+/)raw", std::regex::optimize};
   static const  std::regex& rgxcpp {R"raw(//.*)raw", std::regex::optimize};
   static const  std::regex& rgxblank {R"raw(\n[\t \n]+)raw", std::regex::optimize};
   static const std::string &delimiter_begin {"\n#ident \"managed_enum"};
   static const std::string &delimiter_end {"\n#ident \"end_managed_enum"};
+  static const std::string &pseudo_begin {"\n#ident \"pseudo_enum"};
+  static const std::string &pseudo_end {"\n#ident \"end_pseudo_enum"};
   //static const std::string delimiter_end   {"\n#ident "};
 
 
@@ -52,7 +195,7 @@ parser(const std::string &t_file)
     size_t position_begin_managed_enum  = file_content.find(delimiter_begin, p);
 
     if (position_begin_managed_enum  == std::string::npos)
-      return false;
+      break;
 
     size_t position_end_managed_enum = file_content.find(delimiter_end, position_begin_managed_enum);
     if (position_end_managed_enum  == std::string::npos)
@@ -64,63 +207,31 @@ parser(const std::string &t_file)
     managed_enum_source = std::regex_replace(managed_enum_source, rgxcpp, "");
     managed_enum_source = std::regex_replace(managed_enum_source, rgxblank, "\n");
     // std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
-
-    std::smatch m;
-    static const  std::regex& rgx_begin_name {R"raw(#ident \"managed_enum +(\w+))raw", std::regex::optimize};
-    static const  std::regex& rgx_end_name {R"raw(#ident \"end_managed_enum +(\w+))raw", std::regex::optimize};
-    static const  std::regex& rgx_declation_name {R"raw(enum[ \t]+(\w+).*\n?\{)raw", std::regex::optimize};
-
-
-    if (std::regex_search(managed_enum_source, m, std::regex(rgx_begin_name)))
-      {
-	std::cout << "match is " << m.ready() << " with " << m.size() << std::endl;
-	std::cout << m[0] << " :" << m[0].matched << std::endl;
-	std::cout << m[1] << " :" << m[1].matched << std::endl;
-	enum_name = m[1];
-
-	if (std::regex_search(managed_enum_source, m, std::regex(rgx_end_name)))
-	  {
-	    if (m[1] != enum_name)
-	      {
-		std::cerr << "ERROR : incoherent managed_enum/end_managed_enum directives for "
-			  << enum_name << std::endl;
-		return false;
-	      }
-	    if (std::regex_search(managed_enum_source, m, std::regex(rgx_declation_name)))
-	      {
-		std::cout << "match is " << m.ready() << " with " << m.size() << std::endl;
-		std::cout << m[0] << " :" << m[0].matched << std::endl;
-		std::cout << m[1] << " :" << m[1].matched << std::endl;
-		if (m[1] != enum_name)
-		  {
-		    std::cerr << "ERROR : incoherent managed_enum and actual enum declaration for "
-			      << enum_name << " vs " << m[1] << std::endl;
-		    return false;
-		  }
-	      }
-	    else
-	      {
-		std::cerr << "ERROR :  Incorrect enum declaration for " << enum_name
-			  << " MUST be : enum " << enum_name << " { ..." << std::endl;
-		return false;
-	      }
-	  }
-	else
-	  {
-	    std::cerr << "ERROR : cannot find end_managed_enum directive for " << enum_name << std::endl;
-	    return false;
-	  }
-      }
-    else
-      {
-	std::cerr << "ERROR : Unrecognized managed_enum in code block :" << managed_enum_source << std::endl;
-	return false;
-      }
+    parser_managed_enum(managed_enum_source);
   }
-  std::cout << "#succes#" << std::endl;
+
+  for(size_t p=0, q=0; p!=file_content.npos; p=q) {
+    std::string managed_enum_source {""};
+    size_t position_begin_managed_enum  = file_content.find(pseudo_begin, p);
+
+    if (position_begin_managed_enum  == std::string::npos)
+      return false;
+
+    size_t position_end_managed_enum = file_content.find(pseudo_end, position_begin_managed_enum);
+    if (position_end_managed_enum  == std::string::npos)
+      return false;
+    q  = file_content.find_first_of("\n", position_end_managed_enum + pseudo_end.size());
+
+    managed_enum_source = file_content.substr(position_begin_managed_enum + 1, q -position_begin_managed_enum -1 );
+    managed_enum_source = std::regex_replace(managed_enum_source, rgx, "");
+    managed_enum_source = std::regex_replace(managed_enum_source, rgxcpp, "");
+    managed_enum_source = std::regex_replace(managed_enum_source, rgxblank, "\n");
+    //std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
+    parser_pseudo_enum(managed_enum_source);
+  }
+
   return true;
 }
-
 
 
 

@@ -43,6 +43,7 @@
         "thread": "cpp",
         "tuple": "cpp",
         "typeinfo": "cpp",
-        "valarray": "cpp"
+        "valarray": "cpp",
+        "string": "cpp"
     }
 }
