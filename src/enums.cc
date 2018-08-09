@@ -35,61 +35,7 @@ bool debug {false};
 
 
 
-void
-parser_managed_enum(std::string &managed_enum_source)
-{
-  std::string enum_name{"none"};
 
-  std::smatch m;
-  static const  std::regex& rgx_begin_name {R"raw(#ident \"managed_enum +(\w+))raw", std::regex::optimize};
-  static const  std::regex& rgx_end_name {R"raw(#ident \"end_managed_enum +(\w+))raw", std::regex::optimize};
-  static const  std::regex& rgx_declation_name {R"raw(enum[ \t]+(\w+).*\n?\{)raw", std::regex::optimize};
-
-
-  if (std::regex_search(managed_enum_source, m, std::regex(rgx_begin_name)))
-    {
-
-      enum_name = m[1];
-
-      if (std::regex_search(managed_enum_source, m, std::regex(rgx_end_name)))
-	{
-	  if (m[1] != enum_name)
-	    {
-	      std::cerr << "ERROR : incoherent managed_enum/end_managed_enum directives for "
-			<< enum_name << std::endl;
-	      std::exit(-1);
-	    }
-	  if (std::regex_search(managed_enum_source, m, std::regex(rgx_declation_name)))
-	    {
-
-	      if (m[1] != enum_name)
-		{
-		  std::cerr << "ERROR : incoherent managed_enum and actual enum declaration for "
-			    << enum_name << " vs " << m[1] << std::endl;
-		  std::exit(-1);
-		}
-	      std::cout << "Valid enum " << enum_name << std::endl;
-
-	    }
-	  else
-	    {
-	      std::cerr << "ERROR :  Incorrect enum declaration for " << enum_name
-			<< " MUST be : enum " << enum_name << " { ..." << std::endl;
-	      std::exit(-1);
-	    }
-	}
-      else
-	{
-	  std::cerr << "ERROR : cannot find end_managed_enum directive for " << enum_name << std::endl;
-	  std::exit(-1);
-	}
-    }
-  else
-    {
-      std::cerr << "ERROR : Unrecognized managed_enum in code block :" << managed_enum_source << std::endl;
-      std::exit(-1);
-    }
-}
 std::string get_include_filename(const std::string t_prefix, const std::string &name, const std::string t_suffix)
 {
   std::string tmp {t_prefix};
@@ -141,17 +87,11 @@ parser_pseudo_enum(std::string &managed_enum_source)
 	  std::string   gen_file_name {get_include_filename("gen_",pseudo_enum_name, "_str.hpp")};
 	  std::ofstream gen_file(gen_file_name);
 	  gen_file << header_helper(gen_file_name);
-	  gen_file << R"raw(
+	  gen_file << "const char*get_" << pseudo_enum_name << "(int value, char* pdefault)\n{  switch(value) {\n";
 
-const char*
-get_enum_name(int value, char* pdefault)
-{
-switch(value) {
-
-)raw";
 	  const std::vector<std::string> pseudo_values { split_pseudo_enum(managed_enum_source,1)};
 	  for (const auto& value: pseudo_values)
-	    gen_file  << "case " << value  << " :\n\treturn \"" << value << "\";\n\tbreak;"<< std::endl;
+	    gen_file  << "     case " << value  << " :\n\treturn \"" << value << "\";\n\tbreak;"<< std::endl;
 	  gen_file << R"raw(
   default:
   return pdefault;
@@ -174,6 +114,117 @@ switch(value) {
     }
 }
 
+std::vector<std::string>
+split_managed_enum(const std::string& input,int submatch ) {
+  //static const std::regex& re{R"raw([ \t]*(\w+).*,(/\*.*\*/)?)raw", std::regex::optimize};
+   static const std::regex& re{R"raw(,)raw", std::regex::optimize};
+
+  std::sregex_token_iterator
+    first{input.begin(), input.end(), re, submatch},
+    last;
+    return {first, last};
+}
+
+void
+parser_managed_enum(std::string &managed_enum_source)
+{
+  std::string enum_name{"none"};
+
+  std::smatch m;
+  static const  std::regex& rgx_begin_name {R"raw(#ident \"managed_enum +(\w+))raw", std::regex::optimize};
+  static const  std::regex& rgx_end_name {R"raw(#ident \"end_managed_enum +(\w+))raw", std::regex::optimize};
+  static const  std::regex& rgx_declation_name {R"raw(enum[ \t]+(\w+).*\n?\{)raw", std::regex::optimize};
+  static const  std::regex& rgx_comma {R"raw(\n,)raw", std::regex::optimize};
+
+  static const  std::regex& rgx_comment{R"raw((\w+)\s*,?\s*/\*(.*)\*/)raw", std::regex::optimize};
+  static const  std::regex& rgx_assignement{R"raw(=[^,]*,?)raw", std::regex::optimize};
+  static const  std::regex& rgx_lf{R"raw(\n)raw", std::regex::optimize};
+  managed_enum_source = std::regex_replace(managed_enum_source, rgx_comma, ",\n");
+
+
+  if (std::regex_search(managed_enum_source, m, std::regex(rgx_begin_name)))
+    {
+
+      enum_name = m[1];
+
+      if (std::regex_search(managed_enum_source, m, std::regex(rgx_end_name)))
+	{
+	  if (m[1] != enum_name)
+	    {
+	      std::cerr << "ERROR : incoherent managed_enum/end_managed_enum directives for "
+			<< enum_name << std::endl;
+	      std::exit(-1);
+	    }
+	  if (std::regex_search(managed_enum_source, m, std::regex(rgx_declation_name)))
+	    {
+
+	      if (m[1] != enum_name)
+		{
+		  std::cerr << "ERROR : incoherent managed_enum and actual enum declaration for "
+			    << enum_name << " vs " << m[1] << std::endl;
+		  std::exit(-1);
+		}
+
+	      size_t p  = managed_enum_source.find('{');
+	      managed_enum_source.erase(0, p+1);
+	      p = managed_enum_source.find('}');
+	      managed_enum_source.erase(p, std::string::npos);
+	        managed_enum_source = std::regex_replace(managed_enum_source, rgx_assignement, ",");
+	      managed_enum_source = std::regex_replace(managed_enum_source, rgx_comment, "$01 $02,");
+
+	      managed_enum_source = std::regex_replace(managed_enum_source, rgx_lf, "");
+	      std::cout << "Valid managed_enum " << enum_name << std::endl;
+	      std::string   gen_file_name {get_include_filename("gen_",enum_name, "_str.hpp")};
+	      std::ofstream gen_file(gen_file_name);
+	      gen_file << header_helper(gen_file_name);
+	      gen_file << "const char*\nget_" << enum_name << "(int value, char* pdefault)\n{  switch(value) {\n";
+
+	      const std::vector<std::string> enum_values { split_managed_enum(managed_enum_source,-1)};
+	      for (const auto& valuec: enum_values)
+		{
+		  std::string value{valuec};
+		  static const  std::regex& rgx_rename{R"raw((\w+)\s+\%\"(.*)\"\%\s*)raw", std::regex::optimize};
+		  value.erase(value.find_last_not_of(" \t") + 1);
+		  value.erase(0, value.find_first_not_of(" \t"));
+		  std::cout << "value : " << value << std::endl;
+		  if (regex_search(value, m, rgx_rename))
+		    {
+		      gen_file  << "     case " << m[1]  << " :\n\treturn rename\"" << m[2] << "\";\n\tbreak;"<< std::endl;
+		    }
+		  else
+		    {
+		      if (value != "")
+			gen_file  << "     case " << value  << " :\n\treturn \"" << value << "\";\n\tbreak;"<< std::endl;
+		    }
+		}
+	      gen_file << R"raw(
+  default:
+  return pdefault;
+  }
+}
+#endif
+)raw";
+	      gen_file.close();
+	    }
+	  else
+	    {
+	      std::cerr << "ERROR :  Incorrect enum declaration for " << enum_name
+			<< " MUST be : enum " << enum_name << " { ..." << std::endl;
+	      std::exit(-1);
+	    }
+	}
+      else
+	{
+	  std::cerr << "ERROR : cannot find end_managed_enum directive for " << enum_name << std::endl;
+	  std::exit(-1);
+	}
+    }
+  else
+    {
+      std::cerr << "ERROR : Unrecognized managed_enum in code block :" << managed_enum_source << std::endl;
+      std::exit(-1);
+    }
+}
 
 bool
 parser(const std::string &t_file)
@@ -206,7 +257,7 @@ parser(const std::string &t_file)
     managed_enum_source = std::regex_replace(managed_enum_source, rgx, "");
     managed_enum_source = std::regex_replace(managed_enum_source, rgxcpp, "");
     managed_enum_source = std::regex_replace(managed_enum_source, rgxblank, "\n");
-    // std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
+    std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
     parser_managed_enum(managed_enum_source);
   }
 
