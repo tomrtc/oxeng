@@ -29,8 +29,8 @@
 
 void show_usage(const char *progname);
 
-std::string generated_path;
-std::string input_file;
+std::string generated_path{""};
+std::string input_file{""};
 bool debug {false};
 
 
@@ -38,7 +38,7 @@ bool debug {false};
 
 std::string get_include_filename(const std::string t_prefix, const std::string &name, const std::string t_suffix)
 {
-  std::string tmp {t_prefix};
+  std::string tmp {generated_path+"/"+t_prefix};
   tmp = tmp + name + t_suffix;
   return tmp;
 }
@@ -186,7 +186,7 @@ parser_managed_enum(std::string &managed_enum_source)
 		  static const  std::regex& rgx_rename{R"raw((\w+)\s+\%\"(.*)\"\%\s*)raw", std::regex::optimize};
 		  value.erase(value.find_last_not_of(" \t") + 1);
 		  value.erase(0, value.find_first_not_of(" \t"));
-		  std::cout << "value : " << value << std::endl;
+
 		  if (regex_search(value, m, rgx_rename))
 		    {
 		      gen_file  << "     case " << m[1]  << " :\n\treturn rename\"" << m[2] << "\";\n\tbreak;"<< std::endl;
@@ -257,7 +257,7 @@ parser(const std::string &t_file)
     managed_enum_source = std::regex_replace(managed_enum_source, rgx, "");
     managed_enum_source = std::regex_replace(managed_enum_source, rgxcpp, "");
     managed_enum_source = std::regex_replace(managed_enum_source, rgxblank, "\n");
-    std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
+    // std::cout << "#{"<< managed_enum_source  << "}#\n"<< std::endl;
     parser_managed_enum(managed_enum_source);
   }
 
