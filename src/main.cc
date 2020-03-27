@@ -101,8 +101,8 @@ main (int argc,char *argv[])
     std::cerr << "exception caught: " << std::endl;
   }
   try {
-    //todo builder.parse_tel_targets_async();
-    //todo  builder.generate_tel_binary_tsl_async();
+    builder.parse_tel_targets_async();
+    builder.generate_tel_binary_tsl_async();
     builder.parse_all_applications();
    
   } catch (std::string e)

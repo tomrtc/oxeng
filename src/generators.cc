@@ -378,40 +378,8 @@ builder_context::parse_tel_targets_async()
   std::cout << "}\033[m" << std::endl;
   generate_tel_ref();
 }
-typedef std::vector<std::string> Sentence;
 
-Sentence &split(const std::string &s, char delim, Sentence &elems) {
-  std::stringstream ss(s);
-  std::string item;
-  while (std::getline(ss, item, delim)) {
-    elems.push_back(item);
-  }
-  return elems;
-}
 
-Sentence split(const std::string &s, char delim) {
-  Sentence elems;
-  split(s, delim, elems);
-  return elems;
-}
-
-unsigned int edit_distance(const Sentence& s1, const Sentence& s2)
-{
-  const std::size_t len1 = s1.size(), len2 = s2.size();
-  std::vector<std::vector<unsigned int>> d(len1 + 1, std::vector<unsigned int>(len2 + 1));
-
-  d[0][0] = 0;
-  for(unsigned int i = 1; i <= len1; ++i) d[i][0] = i;
-  for(unsigned int i = 1; i <= len2; ++i) d[0][i] = i;
-
-  for(unsigned int i = 1; i <= len1; ++i)
-    for(unsigned int j = 1; j <= len2; ++j)
-    {
-      d[i][j] = std::min(d[i - 1][j] + 1, d[i][j - 1] + 1);
-      d[i][j] = std::min(d[i][j], d[i - 1][j - 1] + (s1[i - 1] == s2[j - 1] ? 0 : 1));
-    }
-  return d[len1][len2];
-}
 
 // Compute Levenshtein Distance
 // Martin Ettl, 2012-10-05
@@ -464,7 +432,7 @@ builder_context::load_def(const std::string t_target_basename)
   static const std::sregex_iterator endit;
   std::string def_path {m_data_directory};
   def_path += "/" + t_target_basename + "." + def_extension ;
-  std::cout << "Loading def of " <<  def_path  <<  std::endl;
+  
   if (file_exists(def_path.c_str()))
     {
       if (m_debug)
@@ -491,7 +459,6 @@ builder_context::load_def(const std::string t_target_basename)
                 replace(new_def.begin(), new_def.end(), '\t', ' ');
                 std::cerr << "ref : " << ref.first << "." << ref.second << " levenshtein distance : "
                           << uiLevenshteinDistance(old_def,  new_def) << "edit distance "
-                          << edit_distance(split(old_def, ' '), split(new_def, ' ')) 
                           << " already exists! duplicated def in : " << def_path << std::endl;
                 std::cerr << "existing : %%"<< old_def << "%%" << std::endl;
                 std::cerr << "new : %%"<< new_def << "%%"  << std::endl;
