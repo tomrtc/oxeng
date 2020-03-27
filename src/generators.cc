@@ -136,7 +136,7 @@ builder_context::set_string_directory(const char* t_string_directory)
           name =  name.substr(0,npos);
           if (type == "STR")
             m_tel_file_map[index] = name;
-             if (type == "APP")
+          if (type == "APP")
             m_app_file_map[index] = name;
 
         }
@@ -378,8 +378,85 @@ builder_context::parse_tel_targets_async()
   std::cout << "}\033[m" << std::endl;
   generate_tel_ref();
 }
+typedef std::vector<std::string> Sentence;
 
+Sentence &split(const std::string &s, char delim, Sentence &elems) {
+  std::stringstream ss(s);
+  std::string item;
+  while (std::getline(ss, item, delim)) {
+    elems.push_back(item);
+  }
+  return elems;
+}
 
+Sentence split(const std::string &s, char delim) {
+  Sentence elems;
+  split(s, delim, elems);
+  return elems;
+}
+
+unsigned int edit_distance(const Sentence& s1, const Sentence& s2)
+{
+  const std::size_t len1 = s1.size(), len2 = s2.size();
+  std::vector<std::vector<unsigned int>> d(len1 + 1, std::vector<unsigned int>(len2 + 1));
+
+  d[0][0] = 0;
+  for(unsigned int i = 1; i <= len1; ++i) d[i][0] = i;
+  for(unsigned int i = 1; i <= len2; ++i) d[0][i] = i;
+
+  for(unsigned int i = 1; i <= len1; ++i)
+    for(unsigned int j = 1; j <= len2; ++j)
+    {
+      d[i][j] = std::min(d[i - 1][j] + 1, d[i][j - 1] + 1);
+      d[i][j] = std::min(d[i][j], d[i - 1][j - 1] + (s1[i - 1] == s2[j - 1] ? 0 : 1));
+    }
+  return d[len1][len2];
+}
+
+// Compute Levenshtein Distance
+// Martin Ettl, 2012-10-05
+
+size_t uiLevenshteinDistance(const std::string &s1, const std::string &s2)
+{
+  const size_t m(s1.size());
+  const size_t n(s2.size());
+
+  if( m==0 ) return n;
+  if( n==0 ) return m;
+
+  size_t *costs = new size_t[n + 1];
+
+  for( size_t k=0; k<=n; k++ ) costs[k] = k;
+
+  size_t i = 0;
+  for ( std::string::const_iterator it1 = s1.begin(); it1 != s1.end(); ++it1, ++i )
+  {
+    costs[0] = i+1;
+    size_t corner = i;
+
+    size_t j = 0;
+    for ( std::string::const_iterator it2 = s2.begin(); it2 != s2.end(); ++it2, ++j )
+    {
+      size_t upper = costs[j+1];
+      if( *it1 == *it2 )
+      {
+          costs[j+1] = corner;
+      }
+      else
+      {
+        size_t t(upper<corner?upper:corner);
+        costs[j+1] = (costs[j]<t?costs[j]:t)+1;
+      }
+
+      corner = upper;
+    }
+  }
+
+  size_t result = costs[n];
+  delete [] costs;
+
+  return result;
+}
 void
 builder_context::load_def(const std::string t_target_basename)
 {
@@ -387,7 +464,7 @@ builder_context::load_def(const std::string t_target_basename)
   static const std::sregex_iterator endit;
   std::string def_path {m_data_directory};
   def_path += "/" + t_target_basename + "." + def_extension ;
-
+  std::cout << "Loading def of " <<  def_path  <<  std::endl;
   if (file_exists(def_path.c_str()))
     {
       if (m_debug)
@@ -396,27 +473,39 @@ builder_context::load_def(const std::string t_target_basename)
 
       for(size_t p=0, q=0; p!=deffile_content.npos; p=q) {
         std::string item = deffile_content.substr(p+(p!=0), (q=deffile_content.find('\033', p+1))-p-(p!=0)) ;
-
+        
         for (std::sregex_iterator it(item.begin(), item.end(), rgx); it != endit; ++it) {
           auto&& m = *it;
           std::string payload {m[3]};
 
-          int ref_int{ std::stoi(m[1]) *10000 + std::stoi(m[2])};
-           auto pit = m_def_map.find(ref_int);
-           if (pit != m_def_map.end())
-          {
-  //   .erase (it);
-#if 0
-  std::cerr << "ref : " << ref_int/10000 << "." << ref_int%10000 << "already exist! dup def in : " <<def_path << std::endl;
-#endif
-          if (pit->second.size() < payload.size() ){
-           // m_def_map [ref_int] = payload;
-#if 0
-             std::cerr << "ref : " << ref_int << " redefined!" << std::endl;
-#endif
+          std::pair<int,int> ref{ std::stoi(m[1]) ,std::stoi(m[2])};
+          auto pit = m_def_map.find(ref);
+          if (pit != m_def_map.end())
+            {
+              if (pit->second != payload) {
+                std::string old_def {pit->second};
+                std::string new_def {payload};
+                replace(old_def.begin(), old_def.end(), '\n', ' ');
+                replace(new_def.begin(), new_def.end(), '\n', ' ');
+                replace(old_def.begin(), old_def.end(), '\t', ' ');
+                replace(new_def.begin(), new_def.end(), '\t', ' ');
+                std::cerr << "ref : " << ref.first << "." << ref.second << " levenshtein distance : "
+                          << uiLevenshteinDistance(old_def,  new_def) << "edit distance "
+                          << edit_distance(split(old_def, ' '), split(new_def, ' ')) 
+                          << " already exists! duplicated def in : " << def_path << std::endl;
+                std::cerr << "existing : %%"<< old_def << "%%" << std::endl;
+                std::cerr << "new : %%"<< new_def << "%%"  << std::endl;
+                if (pit->second.size() < payload.size() ){
+                  // m_def_map [ref_int] = payload;
+                  std::cerr << "ref : " << ref.first << "." << ref.second << " redefined!" << std::endl;
+                }
+              } else { // silently ignore identical definitions !
+                std::cerr << "ref : " << ref.first << "." << ref.second << " already exists! but same content!" << std::endl;
+              }
+            } else {
+            break;
+            m_def_map [ref] = payload;
           }
-          } else
-              m_def_map [ref_int] = payload;
         }
       }
     }
@@ -437,45 +526,44 @@ builder_context::generate_tel_hlp()
     }
 
   for  (const auto& item : m_def_map) {
-    int head = (item.first /10000);
-    int tail = (item.first%10000);
-    if (head > 2) break;
-     std::string ref{""};
-     ref = std::to_string(head) + "." + std::to_string(tail);
+  
+    if (item.first.first > 2) break;
+    std::string ref{""};
+    ref = std::to_string(item.first.first) + "." + std::to_string(item.first.second);
     std::vector<std::string> def_item{ split_appfile(item.second) };
     if (def_item.size() < 4) continue;
 
     def_item.pop_back();
 
     std::string linked_ref{def_item.back()};
-     def_item.pop_back();
+    def_item.pop_back();
 
-       try {
-            int def_lenght { std::stoi(def_item.back()) };
-             def_item.pop_back();
+    try {
+      int def_lenght { std::stoi(def_item.back()) };
+      def_item.pop_back();
 
-           def_item.pop_back();
+      def_item.pop_back();
 
       hlp_stream << "\033" << ref << std::endl;
-    for (const auto &line : def_item)
-      hlp_stream << line<< std::endl;
+      for (const auto &line : def_item)
+        hlp_stream << line<< std::endl;
 
-    hlp_stream << def_lenght << std::endl;
-    hlp_stream << def_lenght << std::endl;
-    hlp_stream << linked_ref<< std::endl;
-
-
-  }
-  catch (const std::invalid_argument& ia) {
-#if 0
-	  std::cerr << "Invalid def format  for ref :" << ref << '\n';
-#endif
-  }
-
+      hlp_stream << def_lenght << std::endl;
+      hlp_stream << def_lenght << std::endl;
+      hlp_stream << linked_ref<< std::endl;
 
 
     }
+    catch (const std::invalid_argument& ia) {
+
+      std::cerr << "Invalid def format  for ref :" << ref << '\n';
+
+    }
+
+
+
   }
+}
 
 
 
@@ -569,8 +657,8 @@ builder_context::load_tsl_async(const std::string& language)
               if (m[1] != dummy_ref)
                 a_tsl_map[m[1]] = m[2];
             }
-           }
-         }
+          }
+        }
       else
         error  = true;
     }
@@ -604,8 +692,8 @@ builder_context::generate_tel_binary_tsl_async()
     }
   std::cout <<"\033[m" << std::endl;
   generate_tel_locate();
-    generate_tel_ref();
-    generate_tel_hlp();
+  generate_tel_ref();
+  // todo generate_tel_hlp();
   std::cout << "Waiting tasks parallel: {\033[4;40m\033[32m" << std::flush;
   for(auto  &reader : readers) {
 
@@ -620,8 +708,42 @@ builder_context::generate_tel_binary_tsl_async()
   std::cout << "}\033[m" << std::endl;
 }
 
+void
+generate_app_hlp(const std::string &t_name, const string_map_t  &t_string_map)
+{
+  
 
+  std::string app_name{t_name};
+  
+  app_name.erase(app_name.begin() + app_name.find('_'), app_name.end());
+  std::transform(app_name.begin(), app_name.end(), app_name.begin(), ::toupper);
+  std::string hlp_app_name {"HLP_"};
+  hlp_app_name = hlp_app_name + app_name;
+  
+  std::ofstream app_stream(app_name,  std::ios_base::out);
+  std::ofstream hlp_app_stream(hlp_app_name,  std::ios_base::out );
+  std::cout << "Generate HLP file for application :  " << app_name << " " << hlp_app_name  << std::endl;
 
+  for  (const auto& item : t_string_map) {
+    
+    for  (const auto& ref:item.second.m_refs)
+      {
+        hlp_app_stream << std::left << ref.first << std::endl;
+      }
+    hlp_app_stream  << "\033" << item.second.m_refs[0].first << std::endl;
+    for  (const auto& ref:item.second.m_refs)
+      {
+        hlp_app_stream << std::left << ref.first << ref.second << std::endl;
+      }
+    hlp_app_stream  << item.second.m_pos1  << std::endl;
+    hlp_app_stream  << item.second.m_pos2  << std::endl;
+    hlp_app_stream  << item.second.m_fld  << std::endl;
+    hlp_app_stream  << item.second.m_len  << std::endl;
+    hlp_app_stream  << item.second.m_cst  << std::endl;
+  }
+  app_stream.close();
+  hlp_app_stream.close();
+}
 
 void
 generate_app_includes_async(const std::string &t_name, const string_map_t  &t_string_map)
@@ -644,17 +766,17 @@ generate_app_includes_async(const std::string &t_name, const string_map_t  &t_st
   app_define.erase(app_define.begin() + app_define.find('_'), app_define.end());
   std::transform(app_define.begin(), app_define.end(), app_define.begin(), ::toupper);
 
-   std::string  ref_app_file { app_define};
-   ref_app_file = "REF_" + ref_app_file;
-   std::ofstream app_ref(ref_app_file);
+  std::string  ref_app_file { app_define};
+  ref_app_file = "REF_" + ref_app_file;
+  std::ofstream app_ref(ref_app_file);
 
 
   gencst_2 << "#define SIZE_STR_FIC_" << app_define<< "\t" << t_string_map.size() <<std::endl;
   for  ( const auto& item : t_string_map) {
     if (item.second.m_cst == "-undefined")
-        gencst_1 << "/* no constant for idx " << item.first << " */" << std::endl;
-     else
-       gencst_1 << "#define " << item.second.m_cst << "\t" << item.first << std::endl;
+      gencst_1 << "/* no constant for idx " << item.first << " */" << std::endl;
+    else
+      gencst_1 << "#define " << item.second.m_cst << "\t" << item.first << std::endl;
     app_ref << item.second.m_refs[0].first << std::endl;
   }
 
@@ -668,11 +790,11 @@ generate_app_includes_async(const std::string &t_name, const string_map_t  &t_st
 
 void
 builder_context::generate_app_tsl(const std::string language,const std::string &app_name,const string_map_t  &app_string_map,
-const std::map<std::string, std::string>  &t_tsl_map)
+                                  const std::map<std::string, std::string>  &t_tsl_map)
 {
   std::string name{app_name};
 
- name.erase(name.begin() + name.find('_'), name.end());
+  name.erase(name.begin() + name.find('_'), name.end());
   name = language + "_" + name;
   std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
@@ -708,27 +830,27 @@ builder_context::load_app_tsl_async(const std::string& language, const std::stri
   std::map<std::string, std::string>  a_tsl_map {};
 
 
-      std::string tsl_path {m_data_directory};
-      tsl_path += "/" + app_name + "." + lang_extension ;
+  std::string tsl_path {m_data_directory};
+  tsl_path += "/" + app_name + "." + lang_extension ;
 
 
-      if (file_exists(tsl_path.c_str()))
-        {
-          std::string tslfile_content {get_file_contents(tsl_path.c_str())};
-          std::string item {};
+  if (file_exists(tsl_path.c_str()))
+    {
+      std::string tslfile_content {get_file_contents(tsl_path.c_str())};
+      std::string item {};
 
-          for(size_t p=0, q=0; p!=tslfile_content.npos; p=q) {
-            item = tslfile_content.substr(p+(p!=0), (q=tslfile_content.find('\033', p+1))-p-(p!=0)) ;
+      for(size_t p=0, q=0; p!=tslfile_content.npos; p=q) {
+        item = tslfile_content.substr(p+(p!=0), (q=tslfile_content.find('\033', p+1))-p-(p!=0)) ;
 
-            for (std::sregex_iterator it(item.begin(), item.end(), rgx); it != endit; ++it) {
-              auto&& m = *it;
-              if (m[1] != dummy_ref)
-                a_tsl_map[m[1]] = m[2];
-            }
-           }
-         }
-      else
-        error  = true;
+        for (std::sregex_iterator it(item.begin(), item.end(), rgx); it != endit; ++it) {
+          auto&& m = *it;
+          if (m[1] != dummy_ref)
+            a_tsl_map[m[1]] = m[2];
+        }
+      }
+    }
+  else
+    error  = true;
 
   generate_app_tsl(language, app_name, app_string_map, a_tsl_map);
   return error;
@@ -756,21 +878,23 @@ builder_context::parse_all_applications()
           for(size_t p=0, q=0; p!=fixed_str_file_content.npos; p=q) {
             item = fixed_str_file_content.substr(p+(p!=0), (q=fixed_str_file_content.find('\n', p+1))-p-(p!=0)) ;
             if (item.size() > 0) {
-            bool result { insert_record(item, current_string_map) };
-            if (result)
-              std::cout << "\033[32m.\033[m" ;
-            else
-              std::cout << "\033[31m~\033[m" ;
-              }
+              bool result { insert_record(item, current_string_map) };
+              if (result)
+                std::cout << "\033[32m.\033[m" ;
+              else
+                std::cout << "\033[31m~\033[m" ;
+            }
 
           }
           std::cout <<"}" << std::endl ;
           generate_app_includes_async(file.second, current_string_map);
-           for(const auto language : m_lang_map)
-    {
-                std::cout<< "[" << language.first<< "]" << std::flush;
-           load_app_tsl_async(language.first, file.second, current_string_map);
-    }
+          load_def(file.second);
+          generate_app_hlp(file.second, current_string_map);
+          for(const auto language : m_lang_map)
+            {
+              std::cout<< "[" << language.first<< "]" << std::flush;
+              load_app_tsl_async(language.first, file.second, current_string_map);
+            }
         }
       else
         std::cout << "\033[4;40m\033[31m" << target_path   << "\033[m"  << std::endl;

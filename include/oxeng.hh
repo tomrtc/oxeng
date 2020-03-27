@@ -46,7 +46,7 @@ class builder_context{
   std::map< int, std::string> m_tel_file_map{} ;
   bool                               m_debug {false};
  
-  std::map<size_t , std::string> m_def_map{} ;
+  std::map<std::pair<int,int> , std::string> m_def_map{} ;
  
 
   bool insert_record(const std::string& input, string_map_t &t_stringmap);
@@ -72,6 +72,7 @@ public:
   void parse_all_applications();
   void set_debug(){m_debug = true;} ;
   void generate_tel_binary_tsl_async();
+ 
   bool load_tsl_async(const std::string& language);
   bool load_app_tsl_async(const std::string& language, const std::string &app_name,const string_map_t  &app_string_map );
   void generate_app_tsl(const std::string language,const std::string &app_name,

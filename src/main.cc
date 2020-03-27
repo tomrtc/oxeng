@@ -79,7 +79,7 @@ main (int argc,char *argv[])
 	    break;
 
 	  case 'v':/*display the version.*/
-	    std::cout<<"The current version is 0.1."<<std::endl;
+	    std::cout<<"The current version is 0.2. "<<std::endl;
 	    break;
 
 	  case 'd': /* debug and fun!*/
@@ -101,9 +101,10 @@ main (int argc,char *argv[])
     std::cerr << "exception caught: " << std::endl;
   }
   try {
-    builder.parse_tel_targets_async();
-    builder.generate_tel_binary_tsl_async();
+    //todo builder.parse_tel_targets_async();
+    //todo  builder.generate_tel_binary_tsl_async();
     builder.parse_all_applications();
+   
   } catch (std::string e)
   {
     std::cerr  << e << " : " << strerror(errno) << std::endl;
@@ -127,9 +128,12 @@ show_usage(const char *s)
   std::cout<<"Usage:   "<< s <<" [-option] [argument]"<<std::endl;
   std::cout<<"option:  "<<"-h show help information"<<std::endl;
 
-  std::cout<<"         "<<"-s string path data translation files directory (*.FR0 ...) and config directory (should contains lang.cnf ...)"<<std::endl;
+  std::cout<<"         "<<"-s string path data translation files directory (*.FR0 ...) and config directory"<<std::endl;
+  std::cout<<"         "<<"A config sub-directory that should contains config/lang.cnf and config/file.cnf"<<std::endl;
   std::cout<<"         "<<"-u utl should contains loc_str.doc ..."<<std::endl;
-  std::cout<<"         "<<"-v show version infomation"<<std::endl;
+  std::cout<<"         "<<"-v show version information"<<std::endl;
+  std::cout<<"         "<<"-d debugging information"<<std::endl;
+      
   std::cout<<"example: "<< s <<" -u $utl_path -s $strings_path -d"<<std::endl;
 }
 
