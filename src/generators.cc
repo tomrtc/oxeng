@@ -437,40 +437,33 @@ parse_def_entry(const std::string &entry)
  
   for(std::vector<std::string>::size_type index = 0; index != entry_lines.size(); index++)
     {
-
+      std::cout << entry_lines[index] << '\n';
       if (std::regex_match(entry_lines[index], entry_match, rgx))
         {
-          std::string fmt_s = entry_match.format(
-                                                    // $` means characters before the match
-                                                 "[$&]"  // $& means the matched characters
-                                                 );  // $' means characters following the match
+          // std::string fmt_s = entry_match.format(
+          //                                           // $` means characters before the match
+          //                                        "[$&]"  // $& means the matched characters
+          //                                        );  // $' means characters following the match
           // std::cout << "matched : " << fmt_s << " sub[1] = " << entry_match[1] << '\n';
           int size {std::stoi(entry_match[1])};
           
           if ((index + size) > entry_lines.size())
           { return variable_part; /*todo  error handling*/}
             
-          while (size--) variable_part += entry_lines[index++] + '\n';
+          while (size--)
+            variable_part += entry_lines[index++] + '\n';
           if (index < entry_lines.size())
             variable_part += entry_lines[index] + '\n';
+          // for error in file!!
           if (index >= entry_lines.size()) break;
-          // for (size_t i = 0; i < entry_match.size(); ++i)
-          //   {
-          //       std::ssub_match sub_match = entry_match[i];
-          //       std::string piece = sub_match.str();
-          //       auto sub_index = std::stoi(piece);
-          //       std::cout << "submatch of def line " << i << ": " << piece << "parse "<< sub_index << std::endl;
-          //   }
-          
         }
       else
         {
           static_part += entry_lines[index] + '\n';
-          // std::cout << "no match on  " << entry_lines[index] << std::endl;
         }
     }
-   std::cout << "collected variable_part :%%\n" << variable_part << "%%\n";
-   std::cout << "collected static_part :%%\n" << static_part << "%%\n";
+  // std::cout << "collected variable_part :%%\n" << variable_part << "%%\n";
+  // std::cout << "collected static_part :%%\n" << static_part << "%%\n";
   return variable_part;
 }
  // std::vector<std::vector<double>> split_ends(const std::vector<double>& source, const std::vector<int>& ends) {
@@ -500,7 +493,7 @@ parse_def_entry(const std::string &entry)
 void
 builder_context::load_def(const std::string t_target_basename)
 {
-  static const std::regex& rgx {R"raw((\d+)\.(\d+)\n([^\033]+))raw" , std::regex::optimize};
+  static const std::regex& rgx {R"raw((\d+)\.(\d+)\n([^\0]+))raw" , std::regex::optimize};
   static const std::sregex_iterator endit;
   std::string def_path {m_data_directory};
   def_path += "/" + t_target_basename + "." + def_extension ;
@@ -517,7 +510,7 @@ builder_context::load_def(const std::string t_target_basename)
         for (std::sregex_iterator it(item.begin(), item.end(), rgx); it != endit; ++it) {
           auto&& m = *it;
           std::string payload {m[3]};
-
+        
           std::pair<int,int> ref{ std::stoi(m[1]) ,std::stoi(m[2])};
           auto pit = m_def_map.find(ref);
           if (pit != m_def_map.end())
@@ -771,8 +764,6 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
       std::pair<int,int> ref{ std::stoi(ref_0) ,std::stoi(ref_1)};
       auto pit = m_def_map.find(ref);
 
-      if(ref_str == "10.476")
-         std::cout << "bing";
       
       if (pit != m_def_map.end())
         {
