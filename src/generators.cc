@@ -1,7 +1,6 @@
 // generators
 
-#include <oxeng.hh>
-
+#include "oxeng.hh"
 
 #include <cstdlib>
 
@@ -398,33 +397,106 @@ size_t uiLevenshteinDistance(const std::string &s1, const std::string &s2)
 
   size_t i = 0;
   for ( std::string::const_iterator it1 = s1.begin(); it1 != s1.end(); ++it1, ++i )
-  {
-    costs[0] = i+1;
-    size_t corner = i;
-
-    size_t j = 0;
-    for ( std::string::const_iterator it2 = s2.begin(); it2 != s2.end(); ++it2, ++j )
     {
-      size_t upper = costs[j+1];
-      if( *it1 == *it2 )
-      {
-          costs[j+1] = corner;
-      }
-      else
-      {
-        size_t t(upper<corner?upper:corner);
-        costs[j+1] = (costs[j]<t?costs[j]:t)+1;
-      }
+      costs[0] = i+1;
+      size_t corner = i;
 
-      corner = upper;
+      size_t j = 0;
+      for ( std::string::const_iterator it2 = s2.begin(); it2 != s2.end(); ++it2, ++j )
+        {
+          size_t upper = costs[j+1];
+          if( *it1 == *it2 )
+            {
+              costs[j+1] = corner;
+            }
+          else
+            {
+              size_t t(upper<corner?upper:corner);
+              costs[j+1] = (costs[j]<t?costs[j]:t)+1;
+            }
+
+          corner = upper;
+        }
     }
-  }
 
   size_t result = costs[n];
   delete [] costs;
 
   return result;
 }
+
+std::string
+parse_def_entry(const std::string &entry)
+{
+  static const std::regex& rgx {R"raw(@(\d+))raw" , std::regex::optimize};
+  std::smatch entry_match;
+  std::string variable_part;
+  std::string static_part;
+  
+  std::vector<std::string> entry_lines{ split_appfile(entry) };
+ 
+  for(std::vector<std::string>::size_type index = 0; index != entry_lines.size(); index++)
+    {
+
+      if (std::regex_match(entry_lines[index], entry_match, rgx))
+        {
+          std::string fmt_s = entry_match.format(
+                                                    // $` means characters before the match
+                                                 "[$&]"  // $& means the matched characters
+                                                 );  // $' means characters following the match
+          // std::cout << "matched : " << fmt_s << " sub[1] = " << entry_match[1] << '\n';
+          int size {std::stoi(entry_match[1])};
+          
+          if ((index + size) > entry_lines.size())
+          { return variable_part; /*todo  error handling*/}
+            
+          while (size--) variable_part += entry_lines[index++] + '\n';
+          if (index < entry_lines.size())
+            variable_part += entry_lines[index] + '\n';
+          if (index >= entry_lines.size()) break;
+          // for (size_t i = 0; i < entry_match.size(); ++i)
+          //   {
+          //       std::ssub_match sub_match = entry_match[i];
+          //       std::string piece = sub_match.str();
+          //       auto sub_index = std::stoi(piece);
+          //       std::cout << "submatch of def line " << i << ": " << piece << "parse "<< sub_index << std::endl;
+          //   }
+          
+        }
+      else
+        {
+          static_part += entry_lines[index] + '\n';
+          // std::cout << "no match on  " << entry_lines[index] << std::endl;
+        }
+    }
+   std::cout << "collected variable_part :%%\n" << variable_part << "%%\n";
+   std::cout << "collected static_part :%%\n" << static_part << "%%\n";
+  return variable_part;
+}
+ // std::vector<std::vector<double>> split_ends(const std::vector<double>& source, const std::vector<int>& ends) {
+ //    std::vector<std::vector<double>> result;
+ //    result.reserve(ends.size());
+ //    auto anchor_front = source.begin();
+ //    for (auto one_end: ends) {
+ //        auto anchor_end = std::next(source.begin(), one_end + 1);
+ //        result.emplace_back(anchor_front, anchor_end);
+ //        anchor_front = anchor_end;
+ //    }
+
+  
+
+   
+  // for (std::sregex_iterator it(entry.begin(), entry.end(), rgx); it != endit; ++it) {
+  //         auto&& m = *it;
+  //         std::string payload {m[3]};
+  //         std::vector<std::string> def_item{ split_appfile(pit->second) };
+  //         if (def_item.size() < 4)
+  //           {
+  //             std::cout << "problem to fix  parse def format too short : " <<  def_item.size() << ref_str << " " << pit->second << std::endl;
+  //             continue;
+  //           }
+
+
 void
 builder_context::load_def(const std::string t_target_basename)
 {
@@ -469,9 +541,11 @@ builder_context::load_def(const std::string t_target_basename)
               } else { // silently ignore identical definitions !
                 std::cerr << "ref : " << ref.first << "." << ref.second << " already exists! but same content!" << std::endl;
               }
-            } else {
+            }
+          else {
+            m_def_map [ref] = parse_def_entry(payload);
+          
             break;
-            m_def_map [ref] = payload;
           }
         }
       }
@@ -660,7 +734,7 @@ builder_context::generate_tel_binary_tsl_async()
   std::cout <<"\033[m" << std::endl;
   generate_tel_locate();
   generate_tel_ref();
-  // todo generate_tel_hlp();
+  generate_tel_hlp();
   std::cout << "Waiting tasks parallel: {\033[4;40m\033[32m" << std::flush;
   for(auto  &reader : readers) {
 
@@ -676,12 +750,9 @@ builder_context::generate_tel_binary_tsl_async()
 }
 
 void
-generate_app_hlp(const std::string &t_name, const string_map_t  &t_string_map)
+builder_context::generate_app_hlp(const std::string &t_name, const string_map_t  &t_string_map)
 {
-  
-
   std::string app_name{t_name};
-  
   app_name.erase(app_name.begin() + app_name.find('_'), app_name.end());
   std::transform(app_name.begin(), app_name.end(), app_name.begin(), ::toupper);
   std::string hlp_app_name {"HLP_"};
@@ -689,25 +760,38 @@ generate_app_hlp(const std::string &t_name, const string_map_t  &t_string_map)
   
   std::ofstream app_stream(app_name,  std::ios_base::out);
   std::ofstream hlp_app_stream(hlp_app_name,  std::ios_base::out );
-  std::cout << "Generate HLP file for application :  " << app_name << " " << hlp_app_name  << std::endl;
+  std::cout << "Generate HLP file for application :  " << app_name << " " << hlp_app_name  << "\t {";
+ 
+  for  (const auto& item : t_string_map)
+    {
+      std::string ref_str {item.second.m_refs[0].first};
+      size_t npos = ref_str.find_last_of('.');
+      std::string ref_0 =  ref_str.substr(0,npos);
+      std::string ref_1 =  ref_str.substr(npos+1);
+      std::pair<int,int> ref{ std::stoi(ref_0) ,std::stoi(ref_1)};
+      auto pit = m_def_map.find(ref);
 
-  for  (const auto& item : t_string_map) {
-    
-    for  (const auto& ref:item.second.m_refs)
-      {
-        hlp_app_stream << std::left << ref.first << std::endl;
-      }
-    hlp_app_stream  << "\033" << item.second.m_refs[0].first << std::endl;
-    for  (const auto& ref:item.second.m_refs)
-      {
-        hlp_app_stream << std::left << ref.first << ref.second << std::endl;
-      }
-    hlp_app_stream  << item.second.m_pos1  << std::endl;
-    hlp_app_stream  << item.second.m_pos2  << std::endl;
-    hlp_app_stream  << item.second.m_fld  << std::endl;
-    hlp_app_stream  << item.second.m_len  << std::endl;
-    hlp_app_stream  << item.second.m_cst  << std::endl;
-  }
+      if(ref_str == "10.476")
+         std::cout << "bing";
+      
+      if (pit != m_def_map.end())
+        {
+          std::cout << ".";
+          hlp_app_stream  << "\033" << ref_str << std::endl;
+          hlp_app_stream << pit->second;
+          
+          hlp_app_stream  << item.second.m_len  << std::endl;
+          hlp_app_stream  << item.second.m_len  << std::endl;
+          //  hlp_app_stream  << "<<" << linked_ref << ">>" << std::endl;
+          hlp_app_stream  << "NO" << std::endl;
+          // for  (const auto& ref_index:item.second.m_refs)
+          //   {
+          //     hlp_app_stream << std::left << ref_index.first << " / " << ref_index.second ;
+          //   }
+        
+        }
+    }
+  std::cout << "}" << std::endl;
   app_stream.close();
   hlp_app_stream.close();
 }

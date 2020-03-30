@@ -53,13 +53,13 @@ endif()
 
 set(PROJECT_SRC
 	src/main.cc
-        src/generators.cc
+  src/generators.cc
 	src/converters.cc
 	src/lowlevellib.cc
 )
 include_directories(include)
 add_executable(${PROJECT_NAME} ${PROJECT_SRC})
-add_executable(oxengenums src/enums.cc 	src/lowlevellib.cc)
+##add_executable(oxengenums src/enums.cc 	src/lowlevellib.cc)
 
 add_test(
     NAME Testv${PROJECT_NAME}

@@ -62,7 +62,7 @@ public:
   void generate_tel_includes(const std::string &t_name, const string_map_t  &t_string_map);
   void load_all_tsl(const std::string language);
   void load_def(const std::string t_target_basename);
-  
+  void generate_app_hlp(const std::string &t_name, const string_map_t  &t_string_map);
   void set_string_directory(const char* t_string_directory);
   void set_utl_directory(const char* t_utl_directory);
 

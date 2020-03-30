@@ -45,5 +45,8 @@
         "typeinfo": "cpp",
         "valarray": "cpp",
         "string": "cpp"
-    }
+    },
+    "C_Cpp.default.configurationProvider": "vector-of-bool.cmake-tools",
+    "cmake.configureOnOpen": true,
+    "git.ignoreLimitWarning": true
 }

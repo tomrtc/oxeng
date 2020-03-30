@@ -9,10 +9,11 @@
             "name": "Debug",
             "type": "cppdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/build/oxengenums",
-            "args": [  "-f", "tst"],
+            "setupCommands": [ { "text": "-enable-pretty-printing" } ]
+            "program": "${workspaceRoot}/build/oxengstrings",
+            "args": [  "-d", "-u", "utl/code/cpu_strings" ,"-s" ,"string"],
             "stopAtEntry": false,
-            "cwd": "${workspaceRoot}/build"
+            "cwd": "${workspaceRoot}/Debug/stroxe"
 
         }
     ]
