@@ -46,7 +46,7 @@ class builder_context{
   std::map< int, std::string> m_tel_file_map{} ;
   bool                               m_debug {false};
  
-  std::map<std::pair<int,int> , std::string> m_def_map{} ;
+  std::map<std::pair<int,int> , std::pair<std::string, std::string>> m_def_map{} ;
  
 
   bool insert_record(const std::string& input, string_map_t &t_stringmap);

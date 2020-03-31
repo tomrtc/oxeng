@@ -425,7 +425,7 @@ size_t uiLevenshteinDistance(const std::string &s1, const std::string &s2)
   return result;
 }
 
-std::string
+std::pair<std::string, std::string>
 parse_def_entry(const std::string &entry)
 {
   static const std::regex& rgx {R"raw(@(\d+))raw" , std::regex::optimize};
@@ -448,14 +448,17 @@ parse_def_entry(const std::string &entry)
           int size {std::stoi(entry_match[1])};
           
           if ((index + size) > entry_lines.size())
-          { return variable_part; /*todo  error handling*/}
+            { // @[num] is bigger than possible in file!!
+              return std::pair<std::string, std::string>{variable_part, static_part};
+            }
             
           while (size--)
             variable_part += entry_lines[index++] + '\n';
           if (index < entry_lines.size())
             variable_part += entry_lines[index] + '\n';
-          // for error in file!!
-          if (index >= entry_lines.size()) break;
+          
+          if (index >= entry_lines.size()) // for error in file!!
+            break;
         }
       else
         {
@@ -464,7 +467,7 @@ parse_def_entry(const std::string &entry)
     }
   // std::cout << "collected variable_part :%%\n" << variable_part << "%%\n";
   // std::cout << "collected static_part :%%\n" << static_part << "%%\n";
-  return variable_part;
+  return std::pair<std::string, std::string>{variable_part, static_part};
 }
  // std::vector<std::vector<double>> split_ends(const std::vector<double>& source, const std::vector<int>& ends) {
  //    std::vector<std::vector<double>> result;
@@ -475,19 +478,6 @@ parse_def_entry(const std::string &entry)
  //        result.emplace_back(anchor_front, anchor_end);
  //        anchor_front = anchor_end;
  //    }
-
-  
-
-   
-  // for (std::sregex_iterator it(entry.begin(), entry.end(), rgx); it != endit; ++it) {
-  //         auto&& m = *it;
-  //         std::string payload {m[3]};
-  //         std::vector<std::string> def_item{ split_appfile(pit->second) };
-  //         if (def_item.size() < 4)
-  //           {
-  //             std::cout << "problem to fix  parse def format too short : " <<  def_item.size() << ref_str << " " << pit->second << std::endl;
-  //             continue;
-  //           }
 
 
 void
@@ -515,8 +505,8 @@ builder_context::load_def(const std::string t_target_basename)
           auto pit = m_def_map.find(ref);
           if (pit != m_def_map.end())
             {
-              if (pit->second != payload) {
-                std::string old_def {pit->second};
+              if (pit->second.first != payload) {
+                std::string old_def {pit->second.first};
                 std::string new_def {payload};
                 replace(old_def.begin(), old_def.end(), '\n', ' ');
                 replace(new_def.begin(), new_def.end(), '\n', ' ');
@@ -527,7 +517,7 @@ builder_context::load_def(const std::string t_target_basename)
                           << " already exists! duplicated def in : " << def_path << std::endl;
                 std::cerr << "existing : %%"<< old_def << "%%" << std::endl;
                 std::cerr << "new : %%"<< new_def << "%%"  << std::endl;
-                if (pit->second.size() < payload.size() ){
+                if (pit->second.first.size() < payload.size() ){
                   // m_def_map [ref_int] = payload;
                   std::cerr << "ref : " << ref.first << "." << ref.second << " redefined!" << std::endl;
                 }
@@ -537,7 +527,6 @@ builder_context::load_def(const std::string t_target_basename)
             }
           else {
             m_def_map [ref] = parse_def_entry(payload);
-          
             break;
           }
         }
@@ -564,38 +553,13 @@ builder_context::generate_tel_hlp()
     if (item.first.first > 2) break;
     std::string ref{""};
     ref = std::to_string(item.first.first) + "." + std::to_string(item.first.second);
-    std::vector<std::string> def_item{ split_appfile(item.second) };
-    if (def_item.size() < 4) continue;
+      // hlp_stream << "\033" << ref << std::endl;
+      // for (const auto &line : def_item)
+      //   hlp_stream << line<< std::endl;
 
-    def_item.pop_back();
-
-    std::string linked_ref{def_item.back()};
-    def_item.pop_back();
-
-    try {
-      int def_lenght { std::stoi(def_item.back()) };
-      def_item.pop_back();
-
-      def_item.pop_back();
-
-      hlp_stream << "\033" << ref << std::endl;
-      for (const auto &line : def_item)
-        hlp_stream << line<< std::endl;
-
-      hlp_stream << def_lenght << std::endl;
-      hlp_stream << def_lenght << std::endl;
-      hlp_stream << linked_ref<< std::endl;
-
-
-    }
-    catch (const std::invalid_argument& ia) {
-
-      std::cerr << "Invalid def format  for ref :" << ref << '\n';
-
-    }
-
-
-
+      // hlp_stream << def_lenght << std::endl;
+      // hlp_stream << def_lenght << std::endl;
+      // hlp_stream << linked_ref<< std::endl;
   }
 }
 
@@ -754,7 +718,6 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
   std::ofstream app_stream(app_name,  std::ios_base::out);
   std::ofstream hlp_app_stream(hlp_app_name,  std::ios_base::out );
   std::cout << "Generate HLP file for application :  " << app_name << " " << hlp_app_name  << "\t {";
- 
   for  (const auto& item : t_string_map)
     {
       std::string ref_str {item.second.m_refs[0].first};
@@ -768,18 +731,19 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
       if (pit != m_def_map.end())
         {
           std::cout << ".";
+          std::vector<std::string> static_entries{ split_appfile(pit->second.second) };
           hlp_app_stream  << "\033" << ref_str << std::endl;
-          hlp_app_stream << pit->second;
-          
-          hlp_app_stream  << item.second.m_len  << std::endl;
+          hlp_app_stream << pit->second.first;
+          if (static_entries.size() >2)
+            hlp_app_stream  << static_entries[1]  << std::endl;
+          else
+            hlp_app_stream  << item.second.m_len  << std::endl;
           hlp_app_stream  << item.second.m_len  << std::endl;
           //  hlp_app_stream  << "<<" << linked_ref << ">>" << std::endl;
-          hlp_app_stream  << "NO" << std::endl;
-          // for  (const auto& ref_index:item.second.m_refs)
-          //   {
-          //     hlp_app_stream << std::left << ref_index.first << " / " << ref_index.second ;
-          //   }
-        
+           if (static_entries.size() > 3)
+            hlp_app_stream  << static_entries[2]  << std::endl;
+          else
+            hlp_app_stream  << "NO" << std::endl;
         }
     }
   std::cout << "}" << std::endl;
@@ -790,7 +754,7 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
 void
 generate_app_includes_async(const std::string &t_name, const string_map_t  &t_string_map)
 {
-  // Three files containing declaration of constants:
+  // Three files containing declaration of constants: 
   // gencst_<string file>_1.hpp:
   // contains all constants that define for each context the number of strings of
   // the context (included in inc/cpu_dec/constants/string.hpp).
@@ -893,7 +857,7 @@ builder_context::load_app_tsl_async(const std::string& language, const std::stri
     }
   else
     error  = true;
-
+  
   generate_app_tsl(language, app_name, app_string_map, a_tsl_map);
   return error;
 }
