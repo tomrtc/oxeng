@@ -5,6 +5,23 @@
 #include <vector>
 
 
+// define a 'always' lowercase string see: http://www.gotw.ca/gotw/029.htm
+template<typename T>
+struct lowercase_char_traits : std::char_traits<T>
+{
+    static T* copy(T* dest, const T* src, std::size_t count )
+    {
+         for(size_t i = 0 ; i < count ; ++i)
+              dest[i] = std::tolower(src[i]);
+         return dest;
+    }
+    static void assign(T & out, T in)
+    {
+       out = std::tolower(in);
+    }
+};
+typedef std::basic_string<char, lowercase_char_traits<char>> case_insensitive_string;
+
 
 typedef std::vector<std::pair<std::string, std::string> > refs_vector;
 struct fldrecord {
@@ -45,6 +62,7 @@ class builder_context{
   std::map<int, std::string> m_app_file_map{} ;
   std::map< int, std::string> m_tel_file_map{} ;
   bool                               m_debug {false};
+  bool                               m_parallel {true};
  
   std::map<std::pair<int,int> , std::pair<std::string, std::string>> m_def_map{} ;
  
@@ -70,7 +88,9 @@ public:
   void parse_tel_targets();
   void parse_tel_targets_async();
   void parse_all_applications();
-  void set_debug(){m_debug = true;} ;
+  void set_debug(){m_debug = true; set_parallel(false);} ;
+  void set_parallel(bool t_mode){m_parallel = t_mode;} ;
+
   void generate_tel_binary_tsl_async();
  
   bool load_tsl_async(const std::string& language);

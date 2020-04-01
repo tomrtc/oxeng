@@ -169,7 +169,6 @@ insert_async(const std::string& input, string_map_t &t_string_map) {
                            fieldvalues[0],
                            fieldvalues[4]);
 
-
       fieldvalues.erase(fieldvalues.begin(), fieldvalues.begin() + 5);
       for (auto it = fieldvalues.begin() ; it < fieldvalues.end(); it += 2)
         a_record.m_refs.emplace_back(std::make_pair(*it, *(it+1)));
@@ -190,6 +189,10 @@ insert_async(const std::string& input, string_map_t &t_string_map) {
 
       t_string_map.insert(std::make_pair(a_record.m_fld, a_record));
       return ;
+    }
+  else
+    {
+      std::cout << "fail to parse :\n%%" << input << "%%" << std::endl;
     }
   return ;
 }
@@ -283,7 +286,7 @@ generate_tel_includes_async(const std::string &t_name, const string_map_t  &t_st
 #define MAX_SIZE_BY_CHAR	6
 
   for  ( const auto& item : t_string_map) {
-    gencst_2 << "#define " << item.second.m_cst <<"\t\t" << item.first<< std::endl;
+    gencst_2 << "#define " << item.second.m_cst <<"\t\t" << item.first << std::endl;
     gencst_1 << "#define NB_STR_CHAMP" << item.first <<" " << item.second.m_refs.size() << "\t\t//" <<  item.second.m_cst << std::endl;
     gencst_3 << "/* defined constant for field "<< item.first<< " : " << item.second.m_cst <<"*/" << std::endl;
     gentyp_1 << "TYPE_ARRAY_1D(CHAMP" << item.first<< ", 0, NB_STR_CHAMP" << item.first<< "-1, uastring"<< item.second.m_len << ");"<< std::endl;
@@ -347,34 +350,50 @@ void
 builder_context::parse_tel_targets_async()
 {
   std::vector<std::future<string_map_t> > readers;
-
-  std::cout << "Parallel launch : \033[4;40m\033[32m" << std::flush;
+  
+  if (m_parallel)
+    std::cout << "Parallel launch : " << std::flush;
   for(const auto& file : m_tel_file_map)
     {
-
       std::string target_path {file.second};
       target_path = m_utl_directory + "/" +target_path+ "." + doc_extension;
 
       if  (file_exists(target_path.c_str()))
         {
           std::cout <<"[" << file.first << "]" <<  std::flush;
-          readers.push_back(std::async(std::launch::async,  load_doc_file_async, file.second, target_path));
+          if (m_parallel)
+            readers.push_back(std::async(std::launch::async,  load_doc_file_async, file.second, target_path));
+          else
+            {
+              string_map_t result;
+              result = load_doc_file_async(file.second, target_path);
+              m_string_map.insert(result.begin(), result.end());
+            }
         }
       else
-        std::cout << "\033[4;40m\033[31m[" << target_path   << "]\033[m\033[4;40m\033[32m"  << std::endl;
+        std::cout << "[" << target_path   << "]"  << std::endl;
     }
-  std::cout <<"\033[m" << std::endl;
-  std::cout << "Waiting tasks parallel: {\033[4;40m\033[32m" << std::flush;
+  std::cout << std::endl;
+  if (m_parallel)
+    {
+      std::cout << "Waiting tasks parallel: {" << std::flush;
 
-  for(auto  &reader : readers) {
+      for(auto  &reader : readers) {
 
-    reader.wait();
+        reader.wait();
 
-    string_map_t result { std::move(reader.get()) } ;
-    std::cout << "." << std::flush;
-    m_string_map.insert(result.begin(), result.end());
-  }
-  std::cout << "}\033[m" << std::endl;
+        string_map_t result { std::move(reader.get()) } ;
+
+        if (result.size())
+          std::cout << "." << std::flush;
+        else
+          std::cout << "\033[31m~\033[m" << std::flush;
+        m_string_map.insert(result.begin(), result.end());
+   
+      }
+      std::cout << "}" << std::endl;
+    }
+  std::cout << "Read " << m_string_map.size() << " entries." << std::endl;
   generate_tel_ref();
 }
 
@@ -437,7 +456,6 @@ parse_def_entry(const std::string &entry)
  
   for(std::vector<std::string>::size_type index = 0; index != entry_lines.size(); index++)
     {
-      std::cout << entry_lines[index] << '\n';
       if (std::regex_match(entry_lines[index], entry_match, rgx))
         {
           // std::string fmt_s = entry_match.format(
@@ -469,15 +487,15 @@ parse_def_entry(const std::string &entry)
   // std::cout << "collected static_part :%%\n" << static_part << "%%\n";
   return std::pair<std::string, std::string>{variable_part, static_part};
 }
- // std::vector<std::vector<double>> split_ends(const std::vector<double>& source, const std::vector<int>& ends) {
- //    std::vector<std::vector<double>> result;
- //    result.reserve(ends.size());
- //    auto anchor_front = source.begin();
- //    for (auto one_end: ends) {
- //        auto anchor_end = std::next(source.begin(), one_end + 1);
- //        result.emplace_back(anchor_front, anchor_end);
- //        anchor_front = anchor_end;
- //    }
+// std::vector<std::vector<double>> split_ends(const std::vector<double>& source, const std::vector<int>& ends) {
+//    std::vector<std::vector<double>> result;
+//    result.reserve(ends.size());
+//    auto anchor_front = source.begin();
+//    for (auto one_end: ends) {
+//        auto anchor_end = std::next(source.begin(), one_end + 1);
+//        result.emplace_back(anchor_front, anchor_end);
+//        anchor_front = anchor_end;
+//    }
 
 
 void
@@ -490,8 +508,6 @@ builder_context::load_def(const std::string t_target_basename)
   
   if (file_exists(def_path.c_str()))
     {
-      if (m_debug)
-        std::cout << "\033[4;40m\033[32m" <<  def_path  << "\033[m" << std::endl;
       std::string deffile_content {get_file_contents(def_path.c_str())};
 
       for(size_t p=0, q=0; p!=deffile_content.npos; p=q) {
@@ -544,23 +560,40 @@ builder_context::generate_tel_hlp()
 
   for(const auto& file : m_tel_file_map)
     {
-
       load_def(file.second);
     }
-
-  for  (const auto& item : m_def_map) {
-  
-    if (item.first.first > 2) break;
-    std::string ref{""};
-    ref = std::to_string(item.first.first) + "." + std::to_string(item.first.second);
-      // hlp_stream << "\033" << ref << std::endl;
-      // for (const auto &line : def_item)
-      //   hlp_stream << line<< std::endl;
-
-      // hlp_stream << def_lenght << std::endl;
-      // hlp_stream << def_lenght << std::endl;
-      // hlp_stream << linked_ref<< std::endl;
-  }
+  std::cout << "Generate HLP file for TEL of  " << m_string_map.size()  << " entries \t {";
+  for  (const auto& item : m_string_map)
+    {
+      std::string ref_str {item.second.m_refs[0].first};
+      size_t npos = ref_str.find_last_of('.');
+      std::string ref_0 =  ref_str.substr(0,npos);
+      std::string ref_1 =  ref_str.substr(npos+1);
+      std::pair<int,int> ref{ std::stoi(ref_0) ,std::stoi(ref_1)};
+      auto pit = m_def_map.find(ref);
+      if (pit != m_def_map.end())
+        {
+          std::cout << ".";
+          std::vector<std::string> static_entries{ split_appfile(pit->second.second) };
+          hlp_stream  << "\033" << ref_str << std::endl;
+          hlp_stream << pit->second.first;
+          if (static_entries.size() >2)
+            hlp_stream  << static_entries[1]  << std::endl;
+          else
+            hlp_stream  << item.second.m_len  << std::endl;
+          hlp_stream  << item.second.m_len  << std::endl;
+        
+          if (static_entries.size() > 3)
+            hlp_stream  << static_entries[2]  << std::endl;
+          else
+            hlp_stream  << "NO" << std::endl;
+        }
+      else
+        {
+          std::cout << "{" << ref_str << "}!";
+        }
+    }
+  std::cout << "}" << std::endl;
 }
 
 
@@ -677,35 +710,44 @@ void
 builder_context::generate_tel_binary_tsl_async()
 {
   std::vector<std::future<bool> > readers;
-  //auto  = std::bind(&builder_context::load_tsl_async, this, std::placeholders::_1);
-  //auto static_call_load_tsl_async = [this] (const std::string lang)
-  //   {
-  //   this->load_tsl_async(lang);
-  // };
-  std::cout << "parallel launch : \033[4;40m\033[32m" << std::flush;
+  if (m_parallel)
+    std::cout << "parallel launch :" << std::flush;
+  
   for(const auto language : m_lang_map)
     {
       std::cout<< "[" << language.first<< "]" << std::flush;
-      readers.push_back(std::async(std::launch::async,  static_call_load_tsl_async, this ,language.first));
+      if (m_parallel)
+        readers.push_back(std::async(std::launch::async,  static_call_load_tsl_async, this ,language.first));
+      else
+        {
+          bool result;
+          result = load_tsl_async(language.first);
+          if (!result)
+            std::cout << "." << std::flush;
+          else
+            std::cout << "\033[31m~\033[m" << std::flush;
+        }
     }
-  std::cout <<"\033[m" << std::endl;
+  std::cout << std::endl;
+  if (m_parallel)
+    {
+      std::cout << "Waiting tasks parallel: {" << std::flush;
+      for(auto  &reader : readers) {
+
+        reader.wait();
+        bool result { std::move(reader.get()) } ;
+        if (!result)
+          std::cout << "." << std::flush;
+        else
+          std::cout << "\033[31m~\033[m" << std::flush;
+
+      }
+    }
+  std::cout << "}" << std::endl;
   generate_tel_locate();
   generate_tel_ref();
   generate_tel_hlp();
-  std::cout << "Waiting tasks parallel: {\033[4;40m\033[32m" << std::flush;
-  for(auto  &reader : readers) {
-
-    reader.wait();
-    bool result { std::move(reader.get()) } ;
-    if (!result)
-      std::cout << "\033[32m.\033[m" << std::flush;
-    else
-      std::cout << "\033[31m~\033[m" << std::flush;
-
-  }
-  std::cout << "}\033[m" << std::endl;
 }
-
 void
 builder_context::generate_app_hlp(const std::string &t_name, const string_map_t  &t_string_map)
 {
@@ -739,8 +781,8 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
           else
             hlp_app_stream  << item.second.m_len  << std::endl;
           hlp_app_stream  << item.second.m_len  << std::endl;
-          //  hlp_app_stream  << "<<" << linked_ref << ">>" << std::endl;
-           if (static_entries.size() > 3)
+         
+          if (static_entries.size() > 3)
             hlp_app_stream  << static_entries[2]  << std::endl;
           else
             hlp_app_stream  << "NO" << std::endl;
@@ -868,14 +910,13 @@ builder_context::parse_all_applications()
 {
   for(const auto& file : m_app_file_map)
     {
-      std::cout << file.first << "/" << file.second << std::endl;
       std::string target_path {file.second};
       target_path = m_utl_directory + "/" +target_path+ "." + doc_extension;
       if  (file.second == "STR") continue; // skip tel.
       if  (file_exists(target_path.c_str()))
         {
           string_map_t  current_string_map {} ;
-          std::cout << "\033[4;40m\033[32m[" << file.first << "]\033[m" << "\t{" ;
+          std::cout << "[" << file.first << "]" << "\t{" ;
           std::string orig_str_file_content {get_file_contents(target_path.c_str())};
           std::string fixed_str_file_content {};
 
@@ -886,9 +927,9 @@ builder_context::parse_all_applications()
             if (item.size() > 0) {
               bool result { insert_record(item, current_string_map) };
               if (result)
-                std::cout << "\033[32m.\033[m" ;
+                std::cout << "." ;
               else
-                std::cout << "\033[31m~\033[m" ;
+                std::cout << "~" ;
             }
 
           }

@@ -11,7 +11,7 @@
             "request": "launch",
             "setupCommands": [ { "text": "-enable-pretty-printing" } ]
             "program": "${workspaceRoot}/build/oxengstrings",
-            "args": [  "-d", "-u", "utl/code/cpu_strings" ,"-s" ,"string"],
+            "args": [  "-d", "-u", "utl/code/cpu_strings" ,"-s" ,"string" ,"-p", "off"],
             "stopAtEntry": false,
             "cwd": "${workspaceRoot}/Debug/stroxe"
 

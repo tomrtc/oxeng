@@ -60,7 +60,7 @@ main (int argc,char *argv[])
     }
 
   try {
-    while((optchar=getopt(argc,argv,"hvds:u:"))!=-1)
+    while((optchar=getopt(argc,argv,"hvdp:s:u:"))!=-1)
       {
 	switch(optchar)
 	  {
@@ -72,7 +72,23 @@ main (int argc,char *argv[])
 	  case 'u': /*-u $utl_path */
 	    builder.set_utl_directory(optarg);
 	    break;
-
+          case 'p': /*-p */
+            {
+              case_insensitive_string option{optarg};
+              
+              if (option == "on" || option ==   "true" || option ==  "yes" || option == "1")
+                builder.set_parallel(true);
+              else  if (option == "off" || option ==   "false" || option ==  "no" || option == "0")
+                builder.set_parallel(false);
+              else
+                {
+                  show_usage(argv[0]);
+                  std::cout<<"         "<<"-p on/off/yes/no..."<< std::endl;
+                  std::cout<<"         "<< option.c_str() << " ???." << std::endl;
+                  exit(1);
+                }
+            }
+	    break;
 	  case 's':/*-t $strings configuration and data translation files directory*/
 	    builder.set_string_directory(optarg);
 	    break;
@@ -127,11 +143,12 @@ show_usage(const char *s)
   std::cout<<"Usage:   "<< s <<" [-option] [argument]"<<std::endl;
   std::cout<<"option:  "<<"-h show help information"<<std::endl;
 
-  std::cout<<"         "<<"-s string path data translation files directory (*.FR0 ...) and config directory"<<std::endl;
-  std::cout<<"         "<<"A config sub-directory that should contains config/lang.cnf and config/file.cnf"<<std::endl;
+  std::cout<<"         "<<"-s string path data translation files directory (*.FR0 ...) and config directory."<<std::endl;
+  std::cout<<"         "<<"A config sub-directory that should contains config/lang.cnf and config/file.cnf."<<std::endl;
   std::cout<<"         "<<"-u utl should contains loc_str.doc ..."<<std::endl;
-  std::cout<<"         "<<"-v show version information"<<std::endl;
-  std::cout<<"         "<<"-d debugging information"<<std::endl;
+  std::cout<<"         "<<"-v show version information."<<std::endl;
+  std::cout<<"         "<<"-d debugging information."<<std::endl;
+  std::cout<<"         "<<"-p parallel mode for faster results."<<std::endl;
       
   std::cout<<"example: "<< s <<" -u $utl_path -s $strings_path -d"<<std::endl;
 }
