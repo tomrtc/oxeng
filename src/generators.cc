@@ -1,7 +1,24 @@
-// generators
+/*++
+------------------------------------------------------------------------
 
-#include "oxeng.hh"
+             generators.C
 
+     Identification
+
+           Project         :
+
+     Reference Documents   :
+
+     Author                : Remy Tomasetto
+     Date                  : 09/03/2020
+
+     Functionality         : Strings generation tool
+
+     History
+------------------------------------------------------------------------
+++*/
+
+#include <oxeng.hh>
 #include <cstdlib>
 
 #include <iostream>     // std::cout, std::ostream, std::ios
@@ -30,9 +47,7 @@
 
 
 
-//header only 3rd party libraries.
-std::ostream& operator<< (std::ostream& os, const fldrecord& f);
-#include "prettyprint.hh"
+
 
 
 
@@ -350,7 +365,7 @@ void
 builder_context::parse_tel_targets_async()
 {
   std::vector<std::future<string_map_t> > readers;
-  
+  std::cout << "Parsing strings TEL :" << std::endl;
   if (m_parallel)
     std::cout << "Parallel launch : " << std::flush;
   for(const auto& file : m_tel_file_map)
@@ -606,6 +621,7 @@ void
 builder_context::generate_tel_locate()
 {
   std::ofstream locate("LOCATE",std::ios_base::out); //  std::ios_base::app |
+  std::cout << "Generating TEL LOCATE:" << std::endl;
   for  (const auto& item : m_string_map) {
     locate << item.first << "|" << item.second.m_pos1 << "|" << item.second.m_pos2 << "|" << item.second.m_len << "|" << item.second.m_cst  << std::endl;
     // locate << item << "|" << m_string_map[item].m_pos1 << "|" << m_string_map[item].m_pos2 << "|" << m_string_map[item].m_len << "|" << m_string_map[item].m_cst  << std::endl;
@@ -616,6 +632,7 @@ void
 builder_context::generate_tel_ref()
 {
   std::ofstream ref_stream("REF_STR",  std::ios_base::out );
+  std::cout << "Generating TEL REF:" << std::endl;
   for  (const auto& item : m_string_map) {
     for  (const auto& ref:item.second.m_refs)
       {
@@ -629,9 +646,8 @@ void
 builder_context::generate_stu(const std::string language,const std::map<std::string, std::string>  &t_tsl_map)
 {
   size_t string_glyph_length(const std::string &input);
-  void   remy_scan(std::string &input);
   size_t string_byte_size(const std::string &input);
-
+ 
   std::string name{language};
   name += "_STU";
   std::ofstream stu(name,  std::ios_base::out);
@@ -713,6 +729,8 @@ void
 builder_context::generate_tel_binary_tsl_async()
 {
   std::vector<std::future<bool> > readers;
+
+  std::cout << "Translate strings TEL :" << std::endl;
   if (m_parallel)
     std::cout << "parallel launch :" << std::flush;
   
@@ -907,10 +925,11 @@ builder_context::load_app_tsl_async(const std::string& language, const std::stri
   return error;
 }
 
-
+// this is not parallel because the gain are less important.
 void
 builder_context::parse_all_applications()
 {
+  std::cout << "Generating strings for applications :" << std::endl;
   for(const auto& file : m_app_file_map)
     {
       std::string target_path {file.second};
@@ -945,8 +964,9 @@ builder_context::parse_all_applications()
               std::cout<< "[" << language.first<< "]" << std::flush;
               load_app_tsl_async(language.first, file.second, current_string_map);
             }
+          std::cout << std::endl ;
         }
       else
-        std::cout << "\033[4;40m\033[31m" << target_path   << "\033[m"  << std::endl;
+         std::cout << "\033[31m" << target_path   << "\033[m"  << std::endl;
     }
 }

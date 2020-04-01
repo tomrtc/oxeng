@@ -1,3 +1,23 @@
+/*++
+------------------------------------------------------------------------
+
+                    converters.C
+
+     Identification
+
+           Project         :
+
+     Reference Documents   :
+
+     Author                : Remy Tomasetto
+     Date                  : 09/03/2020
+
+     Functionality         : Strings generation tool
+
+     History
+------------------------------------------------------------------------
+++*/
+
 #include "oxeng.hh"
 
 #include <cstdlib>
@@ -22,7 +42,7 @@
 
 #include <stdlib.h>
 #include <sys/stat.h>
-#include "prettyprint.hh"
+
 
  static const std::unordered_map<std::string, const char *>  map_utf7_x {
    {"\\x01", u8""},{"\\x02", u8""},{"\\x03", u8"φ"},{"\\x04", u8"°"}
@@ -236,12 +256,7 @@ size_t string_byte_size(const std::string &input)
 
 
 
-std::ostream& operator<< (std::ostream& os, const fldrecord& f){
-  os<<"{\033[31m#" << f.m_fld << "\033[m}, \033[4;40m\033[32m" << f.m_cst << "\033[m}, l=" << f.m_len << ", p=" << f.m_pos1 << "|" << f.m_pos2 ;
-  std::cout << f.m_refs ;
-  std::cout << "} ";
-  return os;
-}
+
 
 
 

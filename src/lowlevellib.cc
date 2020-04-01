@@ -1,5 +1,24 @@
-#include "lowlevellib.hh"
+/*++
+------------------------------------------------------------------------
 
+                           lowlevellib.C
+
+     Identification
+
+           Project         :
+
+     Reference Documents   :
+
+     Author                : Remy Tomasetto
+     Date                  : 09/03/2020
+
+     Functionality         : Strings generation tool
+
+     History
+------------------------------------------------------------------------
+++*/
+
+#include "lowlevellib.hh"
 #include <cstdlib>
 
 #include <vector>
@@ -20,6 +39,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include <stdlib.h>
 #include <sys/stat.h>

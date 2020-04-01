@@ -1,3 +1,23 @@
+/*++
+ ------------------------------------------------------------------------
+
+                  oxengstrings.C
+
+  Identification
+
+        Project         :
+
+  Reference Documents   :
+
+  Author                : Remy Tomasetto
+  Date                  : 09/03/2020
+
+  Functionality         : Strings generation tool
+
+  History
+------------------------------------------------------------------------
+++*/
+
 #include <cstdlib>
 #include <iostream>
 
@@ -6,6 +26,7 @@
 #include <functional>
 #include <vector>
 #include <regex>
+#include <fstream>
 #include <sstream>
 #include <string>
 #include <cerrno>
@@ -29,7 +50,6 @@
 
 //header only 3rd party libraries.
 
-#include "prettyprint.hh"
 
 #include <oxeng.hh>
 
