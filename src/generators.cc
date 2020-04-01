@@ -565,32 +565,35 @@ builder_context::generate_tel_hlp()
   std::cout << "Generate HLP file for TEL of  " << m_string_map.size()  << " entries \t {";
   for  (const auto& item : m_string_map)
     {
-      std::string ref_str {item.second.m_refs[0].first};
-      size_t npos = ref_str.find_last_of('.');
-      std::string ref_0 =  ref_str.substr(0,npos);
-      std::string ref_1 =  ref_str.substr(npos+1);
-      std::pair<int,int> ref{ std::stoi(ref_0) ,std::stoi(ref_1)};
-      auto pit = m_def_map.find(ref);
-      if (pit != m_def_map.end())
+      for (const auto& ref_pair: item.second.m_refs)
         {
-          std::cout << ".";
-          std::vector<std::string> static_entries{ split_appfile(pit->second.second) };
-          hlp_stream  << "\033" << ref_str << std::endl;
-          hlp_stream << pit->second.first;
-          if (static_entries.size() >2)
-            hlp_stream  << static_entries[1]  << std::endl;
-          else
-            hlp_stream  << item.second.m_len  << std::endl;
-          hlp_stream  << item.second.m_len  << std::endl;
+          std::string ref_str {ref_pair.first};
+          size_t npos = ref_str.find_last_of('.');
+          std::string ref_0 =  ref_str.substr(0,npos);
+          std::string ref_1 =  ref_str.substr(npos+1);
+          std::pair<int,int> ref{ std::stoi(ref_0) ,std::stoi(ref_1)};
+          auto pit = m_def_map.find(ref);
+          if (pit != m_def_map.end())
+            {
+              std::cout << ".";
+              std::vector<std::string> static_entries{ split_appfile(pit->second.second) };
+              hlp_stream  << "\033" << ref_str << std::endl;
+              hlp_stream << pit->second.first;
+              if (static_entries.size() >2)
+                hlp_stream  << static_entries[1]  << std::endl;
+              else
+                hlp_stream  << item.second.m_len  << std::endl;
+              hlp_stream  << item.second.m_len  << std::endl;
         
-          if (static_entries.size() > 3)
-            hlp_stream  << static_entries[2]  << std::endl;
+              if (static_entries.size() > 3)
+                hlp_stream  << static_entries[2]  << std::endl;
+              else
+                hlp_stream  << "NO" << std::endl;
+            }
           else
-            hlp_stream  << "NO" << std::endl;
-        }
-      else
-        {
-          std::cout << "{" << ref_str << "}!";
+            {
+              std::cout << "{" << ref_str << "}!";
+            }
         }
     }
   std::cout << "}" << std::endl;
