@@ -377,7 +377,7 @@ builder_context::parse_tel_targets_async()
         {
           std::cout <<"[" << file.first << "]" <<  std::flush;
           if (m_parallel)
-            readers.push_back(std::async(std::launch::async,  load_doc_file_async, file.second, target_path));
+            readers.push_back(std::async(std::launch::async, load_doc_file_async, file.second, target_path));
           else
             {
               string_map_t result;
@@ -564,7 +564,7 @@ builder_context::load_def(const std::string t_target_basename)
       }
     }
   else
-    std::cerr << "Missing DEF file name in data directory : " <<def_path << std::endl;
+    std::cerr << "Missing DEF file name in data directory : " << def_path << std::endl;
 
 }
 
@@ -577,7 +577,8 @@ builder_context::generate_tel_hlp()
     {
       load_def(file.second);
     }
-  std::cout << "Generate HLP file for TEL of  " << m_string_map.size()  << " entries \t {";
+  if (!m_parallel)
+    std::cout << "Generate HLP file for TEL of  " << m_string_map.size()  << " entries \t {";
   for  (const auto& item : m_string_map)
     {
       for (const auto& ref_pair: item.second.m_refs)
@@ -590,7 +591,8 @@ builder_context::generate_tel_hlp()
           auto pit = m_def_map.find(ref);
           if (pit != m_def_map.end())
             {
-              std::cout << ".";
+              if (!m_parallel)
+                std::cout << ".";
               std::vector<std::string> static_entries{ split_appfile(pit->second.second) };
               hlp_stream  << "\033" << ref_str << std::endl;
               hlp_stream << pit->second.first;
@@ -607,11 +609,13 @@ builder_context::generate_tel_hlp()
             }
           else
             {
-              std::cout << "{" << ref_str << "}!";
+              if (!m_parallel)
+                std::cout << "{" << ref_str << "}!";
             }
         }
     }
-  std::cout << "}" << std::endl;
+  if (!m_parallel)
+    std::cout << "}" << std::endl;
 }
 
 
@@ -621,7 +625,8 @@ void
 builder_context::generate_tel_locate()
 {
   std::ofstream locate("LOCATE",std::ios_base::out); //  std::ios_base::app |
-  std::cout << "Generating TEL LOCATE:" << std::endl;
+  if (!m_parallel)
+    std::cout << "Generating TEL LOCATE:" << std::endl;
   for  (const auto& item : m_string_map) {
     locate << item.first << "|" << item.second.m_pos1 << "|" << item.second.m_pos2 << "|" << item.second.m_len << "|" << item.second.m_cst  << std::endl;
     // locate << item << "|" << m_string_map[item].m_pos1 << "|" << m_string_map[item].m_pos2 << "|" << m_string_map[item].m_len << "|" << m_string_map[item].m_cst  << std::endl;
@@ -632,7 +637,8 @@ void
 builder_context::generate_tel_ref()
 {
   std::ofstream ref_stream("REF_STR",  std::ios_base::out );
-  std::cout << "Generating TEL REF:" << std::endl;
+  if (!m_parallel)
+    std::cout << "Generating TEL REF:" << std::endl;
   for  (const auto& item : m_string_map) {
     for  (const auto& ref:item.second.m_refs)
       {
@@ -738,15 +744,12 @@ builder_context::generate_tel_binary_tsl_async()
     {
       std::cout<< "[" << language.first<< "]" << std::flush;
       if (m_parallel)
-        readers.push_back(std::async(std::launch::async,  static_call_load_tsl_async, this ,language.first));
+        readers.push_back(std::async(std::launch::async, static_call_load_tsl_async, this ,language.first));
       else
         {
-          bool result;
-          result = load_tsl_async(language.first);
-          if (!result)
-            std::cout << "." << std::flush;
-          else
-            std::cout << "\033[31m~\033[m" << std::flush;
+          bool result_error = load_tsl_async(language.first);
+          if (result_error)
+            std::cout << std::endl << "\033[31m~ : " <<  "[" << language.first<< "]" << "failed!\033[m" << std::endl;
         }
     }
   std::cout << std::endl;
@@ -775,12 +778,15 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
   std::string app_name{t_name};
   app_name.erase(app_name.begin() + app_name.find('_'), app_name.end());
   std::transform(app_name.begin(), app_name.end(), app_name.begin(), ::toupper);
+  
+
   std::string hlp_app_name {"HLP_"};
   hlp_app_name = hlp_app_name + app_name;
   
   std::ofstream app_stream(app_name,  std::ios_base::out);
   std::ofstream hlp_app_stream(hlp_app_name,  std::ios_base::out );
-  std::cout << "Generate HLP file for application :  " << app_name << " " << hlp_app_name  << "\t {";
+  if (!m_parallel)
+    std::cout << "Generate HLP file for application :  " << app_name << " " << hlp_app_name  << "\t {";
   for  (const auto& item : t_string_map)
     {
       std::string ref_str {item.second.m_refs[0].first};
@@ -793,7 +799,7 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
       
       if (pit != m_def_map.end())
         {
-          std::cout << ".";
+          
           std::vector<std::string> static_entries{ split_appfile(pit->second.second) };
           hlp_app_stream  << "\033" << ref_str << std::endl;
           hlp_app_stream << pit->second.first;
@@ -807,9 +813,13 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
             hlp_app_stream  << static_entries[2]  << std::endl;
           else
             hlp_app_stream  << "NO" << std::endl;
+
+          if (!m_parallel)
+            std::cout << ".";
         }
     }
-  std::cout << "}" << std::endl;
+  if (!m_parallel)
+    std::cout << "}" << std::endl;
   app_stream.close();
   hlp_app_stream.close();
 }
@@ -883,7 +893,6 @@ builder_context::generate_app_tsl(const std::string language,const std::string &
             str_app << std::left << std::setw(len) << "? " << std::endl;
           }
       }
-
   }
 }
 
@@ -924,49 +933,98 @@ builder_context::load_app_tsl_async(const std::string& language, const std::stri
   generate_app_tsl(language, app_name, app_string_map, a_tsl_map);
   return error;
 }
+bool
+builder_context::app_async(const std::string &app_file)
+{
+  std::string target_path { app_file};
+  target_path = m_utl_directory + "/" +target_path+ "." + doc_extension;
+  
+  if (file_exists(target_path.c_str()))
+    {
+      string_map_t  current_string_map {} ;
+      if (!m_parallel)
+        std::cout << "[" << app_file << "]" << "\t{" ;
+      std::string orig_str_file_content {get_file_contents(target_path.c_str())};
+      std::string fixed_str_file_content {};
 
-// this is not parallel because the gain are less important.
+      std::string item {};
+      canonize_file_format(orig_str_file_content, fixed_str_file_content, true); // fix NO_CST dangling and remove comments.
+      for(size_t p=0, q=0; p!=fixed_str_file_content.npos; p=q) {
+        item = fixed_str_file_content.substr(p+(p!=0), (q=fixed_str_file_content.find('\n', p+1))-p-(p!=0)) ;
+        if (item.size() > 0) {
+          bool result { insert_record(item, current_string_map) };
+          if (!m_parallel) {
+            if (result)
+              std::cout << "." ;
+            else
+              std::cout << "~" ;
+          }
+        }
+      }
+      if (!m_parallel)
+        std::cout <<"}" << std::endl ;
+      generate_app_includes_async(app_file, current_string_map);
+      load_def(app_file);
+      generate_app_hlp(app_file, current_string_map);
+      for(const auto language : m_lang_map)
+        {
+          if (!m_parallel)
+            std::cout<< "[" << language.first<< "]" << std::flush;
+          load_app_tsl_async(language.first, app_file, current_string_map);
+        }
+      if (!m_parallel)
+        std::cout << std::endl ;
+      return true;
+    }
+  else
+    {
+      if (!m_parallel)
+        std::cout << "\033[31m" << target_path   << "\033[m"  << std::endl;
+      return false;
+    }
+}
+
+bool
+static_app_async(builder_context *self, const std::string &app_file)
+{
+  return  self->app_async(app_file);
+}
+
 void
 builder_context::parse_all_applications()
 {
+  std::vector<std::future<bool> > readers;
   std::cout << "Generating strings for applications :" << std::endl;
+  if (m_parallel)
+    std::cout << "Parallel launch : " << std::flush;
   for(const auto& file : m_app_file_map)
     {
-      std::string target_path {file.second};
-      target_path = m_utl_directory + "/" +target_path+ "." + doc_extension;
+       
       if  (file.second == "STR") continue; // skip tel.
-      if  (file_exists(target_path.c_str()))
-        {
-          string_map_t  current_string_map {} ;
-          std::cout << "[" << file.first << "]" << "\t{" ;
-          std::string orig_str_file_content {get_file_contents(target_path.c_str())};
-          std::string fixed_str_file_content {};
-
-          std::string item {};
-          canonize_file_format(orig_str_file_content, fixed_str_file_content, true); // fix NO_CST dangling and remove comments.
-          for(size_t p=0, q=0; p!=fixed_str_file_content.npos; p=q) {
-            item = fixed_str_file_content.substr(p+(p!=0), (q=fixed_str_file_content.find('\n', p+1))-p-(p!=0)) ;
-            if (item.size() > 0) {
-              bool result { insert_record(item, current_string_map) };
-              if (result)
-                std::cout << "." ;
-              else
-                std::cout << "~" ;
-            }
-
-          }
-          std::cout <<"}" << std::endl ;
-          generate_app_includes_async(file.second, current_string_map);
-          load_def(file.second);
-          generate_app_hlp(file.second, current_string_map);
-          for(const auto language : m_lang_map)
-            {
-              std::cout<< "[" << language.first<< "]" << std::flush;
-              load_app_tsl_async(language.first, file.second, current_string_map);
-            }
-          std::cout << std::endl ;
-        }
+      std::cout << "[" << file.second << "]" << std::flush;
+      if (m_parallel)
+        readers.push_back(std::async(std::launch::async, static_app_async, this , file.second));
       else
-         std::cout << "\033[31m" << target_path   << "\033[m"  << std::endl;
+        {
+          bool result = app_async(file.second);
+          if (!result)
+            std::cout << "." << std::flush;
+          else
+            std::cout << "\033[31m~\033[m" << std::flush;
+        }
+    }
+  std::cout << std::endl;
+  if (m_parallel)
+    {
+      std::cout << "Waiting tasks parallel: {" << std::flush;
+      for(auto  &reader : readers) {
+        reader.wait();
+        bool result { std::move(reader.get()) } ;
+        if (result)
+          std::cout << "." << std::flush;
+        else
+          std::cout << "\033[31m~\033[m" << std::flush;
+      }
+      std::cout << "}" << std::endl;
     }
 }

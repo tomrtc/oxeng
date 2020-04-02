@@ -97,6 +97,7 @@ public:
   bool load_app_tsl_async(const std::string& language, const std::string &app_name,const string_map_t  &app_string_map );
   void generate_app_tsl(const std::string language,const std::string &app_name,
   const string_map_t  &app_string_map, const std::map<std::string, std::string>  &t_tsl_map);
+  bool app_async(const std::string&app_file);
 }; 
 
 
