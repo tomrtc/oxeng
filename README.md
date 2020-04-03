@@ -24,21 +24,18 @@ Debug will add the debug flags appropriate for your compiler.
 You could use Visual Code also.
 
 **C++14** with standard STL for "Modern" c++.
-**GNU gold** is used for "modern" linking.
+
+→ scl enable llvm-toolset-7 bash
+→ type clang
+clang is hashed (/opt/rh/llvm-toolset-7/root/usr/bin/clang)
+
+→ export CC=/opt/rh/llvm-toolset-7/root/usr/bin/clang
+
+→ export CXX=/opt/rh/llvm-toolset-7/root/usr/bin/clang++
+
+then cmake use CC/CXX clang compiler.
 
 
-For call-handling : {GEA, FR0,GR0, ...}_STU HLP_STR LOCATE
-A mkdir output
-
-$ cd output
-
-$ cpio -idv < /tmp/object.cpio
-
-3. Create *.cpio Archive with Selected Files
-
-The following example creates a *.cpio archive only with *.c files.
-
-$ find . -iname *.c -print | cpio -ov >/tmp/c_files.cpio
 
 
 

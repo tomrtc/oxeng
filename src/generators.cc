@@ -397,7 +397,8 @@ builder_context::parse_tel_targets_async()
 
         reader.wait();
 
-        string_map_t result { std::move(reader.get()) } ;
+        // string_map_t result { std::move(reader.get()) } ;
+        string_map_t result { reader.get() } ;
 
         if (result.size())
           std::cout << "." << std::flush;

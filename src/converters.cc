@@ -105,7 +105,6 @@ void fix_format(std::string& file, size_t &output_index)
   static const std::string& replace_nocst_equal {"NOCST=-"};
   static const std::string& search_empty_nocst  {"NO_CST"};
   static const std::string& replace_empty_nocst {"NOCST=-undefined"};
-  static const std::string& replace_empty_string {""};
 
   size_t pos =output_index ;
   while ((pos = file.find(search_nocst_equal, pos)) != std::string::npos) {

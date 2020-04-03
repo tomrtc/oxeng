@@ -18,7 +18,7 @@ include(CMakeToolsHelpers OPTIONAL)
 
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -mx32"))
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
-add_definitions(-pthread -D_FORTIFY_SOURCE=2 -g  -fstack-protector-all -Wl,-z,relro,-z,now)
+add_definitions(-pthread -D_FORTIFY_SOURCE=2 -O -g  -fstack-protector-all )
 
 add_definitions(-Wall -Wextra -Werror -ansi -pedantic -Wshadow -Weffc++ -Wformat -Wformat-security  -Wcast-align -Wcast-qual -Wvolatile-register-var  -Wwrite-strings -Wdisabled-optimization)
 find_program( MEMORYCHECK_COMMAND valgrind )
@@ -42,14 +42,10 @@ set( MEMORYCHECK_SUPPRESSIONS_FILE "${PROJECT_SOURCE_DIR}/valgrind_suppress.txt"
 # if (NOT FLEX_FOUND)
 # 	message(SEND_ERROR "Could not find flex scanner generator!")
 # endif()
-find_package(GOLD)
-if (NOT GOLD_FOUND)
-        message(SEND_ERROR "Could not find gold linker in binutils!")
-else()
-	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fuse-ld=gold ")
-	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=gold -Wl,--gdb-index -lpthread")
-	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -fuse-ld=gold -Wl,--disable-new-dtags -lpthread")
-endif()
+#glod is not there on vm41
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ")
+	set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  -Wl -lpthread")
+	set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS}  -Wl -lpthread")
 
 set(PROJECT_SRC
 	src/main.cc
