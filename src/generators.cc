@@ -151,7 +151,9 @@ builder_context::set_string_directory(const char* t_string_directory)
           if (type == "STR")
             m_tel_file_map[index] = name;
           if (type == "APP")
-            m_app_file_map[index] = name;
+            {
+              m_app_file_map[index] = name;
+            }
 
         }
       }
@@ -779,9 +781,11 @@ builder_context::generate_app_hlp(const std::string &t_name, const string_map_t 
   std::string app_name{t_name};
   app_name.erase(app_name.begin() + app_name.find('_'), app_name.end());
   std::transform(app_name.begin(), app_name.end(), app_name.begin(), ::toupper);
-  
+  if (app_name == "DATA")   // exception to the rule, and I don't know why!
+    app_name = "DAT";
 
   std::string hlp_app_name {"HLP_"};
+  
   hlp_app_name = hlp_app_name + app_name;
   
   std::ofstream app_stream(app_name,  std::ios_base::out);
@@ -845,7 +849,9 @@ generate_app_includes_async(const std::string &t_name, const string_map_t  &t_st
   std::string app_define{t_name} ;
   app_define.erase(app_define.begin() + app_define.find('_'), app_define.end());
   std::transform(app_define.begin(), app_define.end(), app_define.begin(), ::toupper);
-
+  if (app_define == "DATA")   // exception to the rule, and I don't know why!
+    app_define = "DAT";
+  
   std::string  ref_app_file { app_define};
   ref_app_file = "REF_" + ref_app_file;
   std::ofstream app_ref(ref_app_file);
@@ -873,8 +879,11 @@ builder_context::generate_app_tsl(const std::string language,const std::string &
                                   const std::map<std::string, std::string>  &t_tsl_map)
 {
   std::string name{app_name};
+  std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
   name.erase(name.begin() + name.find('_'), name.end());
+  if (name == "DATA")   // exception to the rule, and I don't know why!
+    name = "DAT";
   name = language + "_" + name;
   std::transform(name.begin(), name.end(), name.begin(), ::toupper);
 
@@ -1002,7 +1011,7 @@ builder_context::parse_all_applications()
     {
        
       if  (file.second == "STR") continue; // skip tel.
-      std::cout << "[" << file.second << "]" << std::flush;
+      std::cout << "[" << file.first << "]" << std::flush;
       if (m_parallel)
         readers.push_back(std::async(std::launch::async, static_app_async, this , file.second));
       else
